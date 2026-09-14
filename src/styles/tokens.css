@@ -1,0 +1,29 @@
+/* 디자인 토큰 — Figma 핸드오프(18:2) 기준. 색/폰트는 여기서만 정의한다. */
+:root {
+  --void: #0b0a12;
+  --deck: #14121f;
+  --deck2: #1c1930;
+  --wire: #2e2947;
+  --bone: #f2efe6;
+  --dim: #8f87a8;
+  --acid: #d4ff3f;
+  --hot: #ff1f6d;
+  --cyan: #00e5ff;
+  --violet: #9d4edd;
+
+  /* 순위 등급색 — 1위 금 / 2위 은 / 3위 동 / 4위 이하 공통 */
+  --rank-gold: #d9b65d;
+  --rank-silver: #bfc3cc;
+  --rank-bronze: #b7794b;
+  --rank-default: #5b5670;
+
+  --font-display: 'Black Han Sans', 'Gothic A1', system-ui, sans-serif;
+  --font-body: 'Gothic A1', system-ui, sans-serif;
+
+  /* 레이아웃 기준: 캔버스 1100px, 좌우 여백 70px, 콘텐츠 960px */
+  --canvas: 1100px;
+  --gutter: 70px;
+  --content: 960px;
+  /* 순위 오디오 레인 최대 폭 */
+  --lane: 800px;
+}

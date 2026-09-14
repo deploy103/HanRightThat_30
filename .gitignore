@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-server
+data/festival.json
+*.local
+.DS_Store
+
+# 참고/작업 지시용 문서 - 배포 레포에는 불필요
+AGENTS.md
+CODEX_PROMPT.md
+요구사항.md
+*.fig
+festival-sori(참고용).html
