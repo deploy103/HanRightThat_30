@@ -1,10 +1,6 @@
-import { AdminApp } from './admin/AdminApp';
 import { FestivalApp } from './festival/FestivalApp';
-import { useRoute } from './hooks/useRoute';
 
+/** 관리 화면은 별도 저장소(HanRightThat_30_admin)로 분리되어 이 앱은 공개 조회 화면만 서빙한다. */
 export function App() {
-  const { path, navigate } = useRoute();
-  const isAdmin = path.startsWith('/admin');
-
-  return isAdmin ? <AdminApp navigate={navigate} /> : <FestivalApp navigate={navigate} />;
+  return <FestivalApp />;
 }

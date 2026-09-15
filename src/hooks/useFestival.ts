@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FestivalData } from '../../shared/types';
-import { api } from '../lib/api';
+import { api, type PublicFestival } from '../lib/api';
 
 export interface FestivalState {
-  data: FestivalData | null;
+  data: PublicFestival | null;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  setData: (data: FestivalData) => void;
+  setData: (data: PublicFestival) => void;
 }
 
 /**
@@ -15,7 +14,7 @@ export interface FestivalState {
  * pollMs 를 주면 주기적으로/탭 복귀 시 다시 읽어 관리자가 수정한 값이 공개 화면에 반영된다.
  */
 export function useFestival(pollMs = 0): FestivalState {
-  const [data, setData] = useState<FestivalData | null>(null);
+  const [data, setData] = useState<PublicFestival | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
