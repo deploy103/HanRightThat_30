@@ -17,6 +17,8 @@ describe('parseBoothInput', () => {
       amount: 184000,
       place: undefined,
       position: { x: 61.5, y: 21 },
+      isActive: true,
+      isPublic: true,
     });
   });
 

@@ -2,6 +2,8 @@ node_modules
 dist
 dist-server
 data/festival.json
+data/admin.json
+.env
 *.local
 .DS_Store
 

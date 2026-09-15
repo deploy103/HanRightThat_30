@@ -12,6 +12,9 @@ export function createSeedData(): FestivalData {
       goal: 0,
       stage: '대강당',
     },
+    settings: {
+      rankingsPublic: true,
+    },
     booths: [
       {
         id: 'booth-cottoncandy',
@@ -21,6 +24,9 @@ export function createSeedData(): FestivalData {
         amount: 184000,
         place: '2층 클라우드보안과 1-1',
         position: { x: 61.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
       {
         id: 'booth-escape',
@@ -30,6 +36,9 @@ export function createSeedData(): FestivalData {
         amount: 151500,
         place: '2층 클라우드보안과 1-2',
         position: { x: 81.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
       {
         id: 'booth-tarot',
@@ -39,6 +48,9 @@ export function createSeedData(): FestivalData {
         amount: 97000,
         place: '2층 지능형소프트웨어과 1-1',
         position: { x: 19.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
       {
         id: 'booth-slush',
@@ -48,6 +60,9 @@ export function createSeedData(): FestivalData {
         amount: 64200,
         place: '2층 메타버스게임과 1-1',
         position: { x: 40.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
       {
         id: 'booth-photo',
@@ -57,6 +72,9 @@ export function createSeedData(): FestivalData {
         amount: 38500,
         place: '3층 클라우드보안과 2-2',
         position: { x: 81.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
       {
         id: 'booth-boardgame',
@@ -66,6 +84,9 @@ export function createSeedData(): FestivalData {
         amount: 52300,
         place: '3층 클라우드보안과 2-1',
         position: { x: 61.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
       {
         id: 'booth-goods',
@@ -75,6 +96,9 @@ export function createSeedData(): FestivalData {
         amount: 31000,
         place: '3층 메타버스게임과 2-1',
         position: { x: 40.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
       {
         id: 'booth-tteok',
@@ -84,6 +108,9 @@ export function createSeedData(): FestivalData {
         amount: 88700,
         place: '3층 지능형소프트웨어과 2-1',
         position: { x: 19.5, y: 33 },
+        isActive: true,
+        isPublic: true,
+        archivedAt: null,
       },
     ],
     shows: [
@@ -138,5 +165,11 @@ export function createSeedData(): FestivalData {
         note: '부스 모금 순위 발표',
       },
     ],
+    scheduleItems: [
+      { id: 'schedule-open', time: '12:30', title: '개회식', note: '운동장 집합' },
+      { id: 'schedule-booth', time: '13:00', title: '부스 운영 시작' },
+      { id: 'schedule-close', time: '16:00', title: '폐회식 · 모금 결과 발표' },
+    ],
+    announcements: [],
   };
 }
