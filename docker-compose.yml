@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: 8787
+      FESTIVAL_DB: /app/data/festival.json
+      ADMIN_KEY: ${ADMIN_KEY:-}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
