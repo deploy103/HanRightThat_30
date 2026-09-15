@@ -8,6 +8,7 @@ import { listAuditLogs, recordAuditLog } from '../auditLog.js';
 import {
   createSession,
   destroySession,
+  DUMMY_PASSWORD_HASH,
   findAdminUser,
   resolveSession,
   SESSION_COOKIE,
@@ -66,8 +67,9 @@ adminRouter.post(
     }
 
     const user = await findAdminUser(username);
-    const ok = user ? await verifyPassword(password, user.passwordHash) : false;
-    if (!ok) {
+    // 아이디가 없어도 동일하게 scrypt 검증을 수행해 존재 여부가 응답 시간으로 드러나지 않게 한다.
+    const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!user || !ok) {
       recordLoginFailure(key);
       await recordAuditLog({ admin: username, action: 'login_failed', targetType: 'session', targetId: username, ip });
       throw new HttpError(401, '아이디 또는 비밀번호가 올바르지 않습니다.');

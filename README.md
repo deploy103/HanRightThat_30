@@ -150,7 +150,12 @@ docker compose exec web node dist-server/server/createAdmin.js --username admin
 - 세션은 `token.서명` 형태의 쿠키(`HttpOnly`, 운영에서 `Secure`, `SameSite=Lax`)이고, 서버는 토큰의 sha256 해시만 저장한다.
 - CSRF 는 double-submit 쿠키 패턴(`X-CSRF-Token` 헤더 == `csrf` 쿠키)으로 방어한다.
 - 로그인은 IP+아이디 기준 in-memory rate limit(5회 실패 시 15분 잠금, 단일 프로세스 기준)으로 brute-force 를 늦춘다.
+- 로그인 시 아이디가 존재하지 않아도 더미 해시로 동일하게 scrypt 검증을 수행해, 응답 시간 차이로 계정 존재 여부를 추측(타이밍 사이드채널)할 수 없게 한다.
+- `SESSION_SECRET` 이 없거나 32자 미만이면 `NODE_ENV=production` 에서 서버가 아예 기동에 실패한다 — "일단 뜨긴 뜨는" 안전하지 않은 배포를 막기 위함.
+- `trust proxy` 는 정확히 1(리버스 프록시 한 홉)로 설정한다 — 그래야 `X-Forwarded-For` 를 조작해 rate limit/감사로그의 IP 기록을 속일 수 없다. 프록시 단수가 바뀌면 `server/index.ts` 의 이 값도 함께 조정해야 한다.
+- 모든 응답에 `X-Content-Type-Options`/`X-Frame-Options`/`Referrer-Policy` 를 붙이고, `/api/admin/*` 응답에는 `Cache-Control: no-store` 를 붙인다(`server/securityHeaders.ts`).
 - 인가 검사는 전부 서버 미들웨어(`server/middleware/adminAuth.ts`)에서 하며, 프론트엔드는 UX 편의(가드/버튼 노출)만 담당한다.
+- GitHub 저장소에는 secret scanning + push protection + Dependabot alert 를 켜 두었다.
 - **TODO(향후 확장)**: TOTP/OTP 2차 인증. `server/auth.ts` 의 `createSession`/`resolveSession` 사이에 2차 인증 확인 단계를 끼워 넣는 방식으로 확장 가능하도록 로그인 로직을 한 곳에 모아 두었다.
 
 ## 화면 구성

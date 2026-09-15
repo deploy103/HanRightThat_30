@@ -70,3 +70,11 @@ describe('createAdminUser', () => {
     await expect(auth.createAdminUser('dup-user', 'password1234')).rejects.toThrow();
   });
 });
+
+describe('DUMMY_PASSWORD_HASH (계정 열거 타이밍 공격 방지)', () => {
+  it('어떤 비밀번호를 넣어도 항상 false 이고, 정상 해시와 동일한 형식이다', async () => {
+    expect(auth.DUMMY_PASSWORD_HASH).toMatch(/^[0-9a-f]+:[0-9a-f]+$/);
+    expect(await auth.verifyPassword('아무거나', auth.DUMMY_PASSWORD_HASH)).toBe(false);
+    expect(await auth.verifyPassword('', auth.DUMMY_PASSWORD_HASH)).toBe(false);
+  });
+});
