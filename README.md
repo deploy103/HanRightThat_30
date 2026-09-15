@@ -172,9 +172,24 @@ cp .env.example .env   # SESSION_SECRET 등 채우기
 docker compose up -d --build
 ```
 
-- 컨테이너는 `127.0.0.1:8787` 에만 바인딩된다 — 외부에서는 반드시 리버스 프록시를 통해 접근한다.
+- 컨테이너는 기본적으로 `127.0.0.1:8787` 에만 바인딩된다 — 외부에서는 반드시 리버스 프록시를 통해 접근한다.
 - `data/` 디렉터리를 볼륨으로 마운트하므로 재배포/재시작해도 데이터가 유지된다.
-- nginx 예시 설정: [`deploy/nginx.conf.example`](./deploy/nginx.conf.example) (hanwol.site, www.hanwol.site).
+
+### 리버스 프록시가 이 VM과 같은 곳에 있는 경우
+
+`.env` 의 `BIND_ADDR` 을 기본값(`127.0.0.1`) 그대로 두고, 이 VM에 nginx 를 설치해
+[`deploy/nginx.conf.example`](./deploy/nginx.conf.example) 을 등록한다 (`proxy_pass http://127.0.0.1:8787;`).
+
+### 리버스 프록시가 별도 VM에 있는 경우 (같은 프라이빗 네트워크)
+
+리버스 프록시를 별도 서버로 이미 운영 중이라면 이 VM에 nginx 를 또 설치할 필요가 없다. 대신:
+
+1. `.env` 의 `BIND_ADDR` 을 이 VM의 프라이빗 IP로 설정한다 (예: `BIND_ADDR=10.0.1.5`).
+2. 방화벽/보안그룹에서 **리버스 프록시 서버의 IP만** 8787 포트에 접근하도록 제한한다 (그 외 전체 차단).
+3. 리버스 프록시 서버 쪽 설정([`deploy/nginx.conf.example`](./deploy/nginx.conf.example))의
+   `proxy_pass http://WEB_VM_PRIVATE_IP:8787;` 를 이 VM의 프라이빗 IP로 바꿔서 그 서버에 등록한다.
+
+어느 경우든 8787 포트가 인터넷에 그대로 노출되면 안 된다 — 리버스 프록시(들)만 접근 가능해야 한다.
 
 ### 서버 갱신 절차 (public 만 재배포)
 

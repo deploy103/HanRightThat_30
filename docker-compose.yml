@@ -2,8 +2,11 @@ services:
   web:
     build: .
     ports:
-      # reverse proxy(nginx)만 접근하도록 loopback 에만 바인딩한다.
-      - "127.0.0.1:8787:8787"
+      # 기본값(127.0.0.1)은 이 VM 안에서만 접근 가능하다.
+      # 리버스 프록시가 다른 VM(같은 프라이빗 네트워크)에 있다면 .env 에서
+      # BIND_ADDR 을 이 VM의 프라이빗 IP(또는 0.0.0.0)로 바꾸고, 반드시 방화벽/보안그룹으로
+      # 리버스 프록시 서버의 IP 외에는 이 포트에 접근하지 못하도록 막아야 한다.
+      - "${BIND_ADDR:-127.0.0.1}:8787:8787"
     environment:
       PORT: 8787
       NODE_ENV: production
