@@ -6,6 +6,7 @@ import { DATA_FILE, loadData } from './db.js';
 import { adminCors } from './cors.js';
 import { adminRouter } from './routes/admin.js';
 import { publicRouter } from './routes/public.js';
+import { noStore, securityHeaders } from './securityHeaders.js';
 import { HttpError } from './validate.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -15,10 +16,14 @@ const PORT = Number(process.env.PORT ?? 8787);
 
 export function createServer() {
   const app = express();
-  app.set('trust proxy', true); // reverse proxy 뒤에서도 req.ip 가 실제 클라이언트 주소를 가리키게 한다.
+  // 정확히 리버스 프록시 한 홉(nginx) 뒤에 있다고 가정한다 — 그래야 클라이언트가 보낸
+  // X-Forwarded-For 를 그대로 신뢰해 req.ip 를 위조(rate limit/감사로그 우회)할 수 없다.
+  // 배포 구조가 바뀌어 프록시가 여러 단이 되면 이 숫자도 함께 조정해야 한다.
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '256kb' }));
+  app.use(securityHeaders);
 
-  app.use('/api/admin', adminCors, adminRouter);
+  app.use('/api/admin', adminCors, noStore, adminRouter);
   app.use('/api/public', publicRouter);
 
   // 빌드된 클라이언트가 있으면 같은 포트에서 함께 제공한다 (production).
