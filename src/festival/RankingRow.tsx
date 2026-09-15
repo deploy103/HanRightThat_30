@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { formatWon, padRank } from '../lib/format';
-import { clipWidthPx, TIER_COLOR, TIER_LABEL, type RankedBooth } from '../lib/ranking';
+import { clipWidthPx, TIER_COLOR, TIER_LABEL, type RankedBooth } from '../../shared/ranking';
 import { hashSeed, waveformBars } from '../lib/waveform';
 
 const WAVE_WIDTH = 600;

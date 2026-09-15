@@ -7,14 +7,10 @@ import { MapView } from './MapView';
 import { RankingView } from './RankingView';
 import { ScheduleView } from './ScheduleView';
 
-interface Props {
-  navigate: (to: string) => void;
-}
-
 /** 관리자가 값을 고치면 공개 화면도 따라오도록 주기적으로 다시 읽는다. */
-const POLL_MS = 20000;
+const POLL_MS = 8000;
 
-export function FestivalApp({ navigate }: Props) {
+export function FestivalApp() {
   const [tab, setTab] = useState<TabId>('rank');
   const { data, loading, error } = useFestival(POLL_MS);
 
@@ -38,7 +34,14 @@ export function FestivalApp({ navigate }: Props) {
                 tabIndex={-1}
                 hidden={tab !== item.id}
               >
-                {item.id === 'rank' ? <RankingView booths={data.booths} meta={data.meta} /> : null}
+                {item.id === 'rank' ? (
+                  <RankingView
+                    rankings={data.rankings}
+                    rankingsPublic={data.rankingsPublic}
+                    total={data.total}
+                    meta={data.meta}
+                  />
+                ) : null}
                 {item.id === 'map' ? <MapView booths={data.booths} /> : null}
                 {item.id === 'show' ? <ScheduleView shows={data.shows} meta={data.meta} /> : null}
               </section>
@@ -46,7 +49,7 @@ export function FestivalApp({ navigate }: Props) {
           : null}
       </main>
 
-      <FestivalFooter onAdmin={() => navigate('/admin')} />
+      <FestivalFooter />
     </>
   );
 }

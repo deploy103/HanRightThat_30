@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
-import type { Booth, FestivalMeta } from '../../shared/types';
+import type { RankedBooth } from '../../shared/ranking';
+import { TIER_COLOR } from '../../shared/ranking';
+import type { FestivalMeta } from '../../shared/types';
 import { PanelHeading } from '../components/PanelHeading';
 import { formatWon } from '../lib/format';
-import { rankBooths, sumAmount, TIER_COLOR } from '../lib/ranking';
 import { RankingRow } from './RankingRow';
 
 interface Props {
-  booths: Booth[];
+  rankings: RankedBooth[];
+  rankingsPublic: boolean;
+  total: number;
   meta: FestivalMeta;
 }
 
@@ -18,17 +20,18 @@ const LEGEND = [
   { tier: 'normal', label: '4위 이하' },
 ] as const;
 
-export function RankingView({ booths, meta }: Props) {
-  const ranked = useMemo(() => rankBooths(booths), [booths]);
-  const total = useMemo(() => sumAmount(booths), [booths]);
-  const top = ranked[0]?.booth.amount ?? 0;
+/** 순위는 항상 서버가 계산해 내려준다 — 이 컴포넌트는 렌더링만 담당한다. */
+export function RankingView({ rankings, rankingsPublic, total, meta }: Props) {
+  const top = rankings[0]?.booth.amount ?? 0;
 
   return (
     <>
       <PanelHeading title="부스 모금" accent="순위" note={meta.updated} />
 
-      {ranked.length === 0 ? (
-        <p className="empty">등록된 부스가 없습니다. 관리 화면에서 부스를 추가해 주세요.</p>
+      {!rankingsPublic ? (
+        <p className="empty">현재 순위는 비공개 상태입니다.</p>
+      ) : rankings.length === 0 ? (
+        <p className="empty">등록된 부스가 없습니다.</p>
       ) : (
         <>
           <div className="deckhead">
@@ -41,7 +44,7 @@ export function RankingView({ booths, meta }: Props) {
                 </>
               ) : (
                 <>
-                  부스 <b>{ranked.length}</b>개 합계
+                  부스 <b>{rankings.length}</b>개 합계
                 </>
               )}
             </span>
@@ -68,7 +71,7 @@ export function RankingView({ booths, meta }: Props) {
           </div>
 
           <div className="track-list">
-            {ranked.map((entry) => (
+            {rankings.map((entry) => (
               <RankingRow key={entry.booth.id} entry={entry} />
             ))}
           </div>

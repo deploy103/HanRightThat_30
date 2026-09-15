@@ -4,7 +4,6 @@ import { App } from './App';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/festival.css';
-import './styles/admin.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('#root 엘리먼트를 찾을 수 없습니다.');
