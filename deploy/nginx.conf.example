@@ -1,4 +1,9 @@
-# hanwol.site / www.hanwol.site -> HanRightThat_30 컨테이너(127.0.0.1:8787) 리버스 프록시 예시.
+# hanwol.site / www.hanwol.site -> HanRightThat_30 컨테이너 리버스 프록시 예시.
+#
+# 이 설정은 리버스 프록시 서버(웹 VM과 별도 서버)에서 실행한다고 가정한다.
+# proxy_pass 의 WEB_VM_PRIVATE_IP 를 실제 웹 VM의 프라이빗 IP로 바꿀 것
+# (같은 VM에서 리버스 프록시까지 함께 돌린다면 127.0.0.1 로 바꿔도 된다).
+# 웹 VM 쪽 docker-compose 의 BIND_ADDR 도 이 프록시 서버가 접근 가능한 주소로 맞춰야 한다.
 # 실제 서버 경로/인증서 경로는 환경에 맞게 조정한다.
 # 인증서는 certbot 기준 경로를 예시로 두었다 (예: certbot --nginx -d hanwol.site -d www.hanwol.site).
 
@@ -21,7 +26,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/hanwol.site/privkey.pem;
 
     location / {
-        proxy_pass http://127.0.0.1:8787;
+        proxy_pass http://WEB_VM_PRIVATE_IP:8787;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
