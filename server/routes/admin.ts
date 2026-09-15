@@ -409,6 +409,13 @@ adminRouter.delete(
 
 // --- 기본 정보 / 설정 ---
 
+adminRouter.get(
+  '/meta',
+  asyncRoute(async (_req, res) => {
+    res.json((await loadData()).meta);
+  }),
+);
+
 adminRouter.put(
   '/meta',
   asyncRoute(async (req: AuthedRequest, res: Response) => {
