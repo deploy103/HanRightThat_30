@@ -18,6 +18,12 @@ export interface Booth {
   /** 배치도에서 읽기 쉬우라고 붙이는 보조 위치 라벨 (예: "2층 복도 동편") */
   place?: string;
   position: BoothPosition;
+  /** 운영 중 여부 (false 면 "운영 종료" 상태로 취급하되 여전히 노출될 수 있다) */
+  isActive: boolean;
+  /** 공개 화면 노출 여부 */
+  isPublic: boolean;
+  /** 보관(soft delete) 처리 시각. null 이면 보관되지 않은 상태 */
+  archivedAt: string | null;
 }
 
 export interface Show {
@@ -32,6 +38,23 @@ export interface Show {
   note?: string;
 }
 
+export interface ScheduleItem {
+  id: string;
+  /** "HH:MM" */
+  time: string;
+  title: string;
+  note?: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FestivalMeta {
   /** 순위 갱신 시각 문구 (예: "9월 8일 오후 3시 기준") */
   updated: string;
@@ -41,11 +64,21 @@ export interface FestivalMeta {
   stage: string;
 }
 
+export interface FestivalSettings {
+  /** false 면 공개 화면/공개 API 에서 순위를 숨긴다. */
+  rankingsPublic: boolean;
+}
+
 export interface FestivalData {
   meta: FestivalMeta;
   booths: Booth[];
   shows: Show[];
+  scheduleItems: ScheduleItem[];
+  announcements: Announcement[];
+  settings: FestivalSettings;
 }
 
-export type BoothInput = Omit<Booth, 'id'>;
+export type BoothInput = Omit<Booth, 'id' | 'archivedAt'>;
 export type ShowInput = Omit<Show, 'id'>;
+export type ScheduleItemInput = Omit<ScheduleItem, 'id'>;
+export type AnnouncementInput = Omit<Announcement, 'id' | 'createdAt' | 'updatedAt'>;

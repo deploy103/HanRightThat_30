@@ -1,9 +1,14 @@
 import type {
+  Announcement,
+  AnnouncementInput,
   Booth,
   BoothInput,
   FestivalData,
   FestivalMeta,
+  FestivalSettings,
   FloorId,
+  ScheduleItem,
+  ScheduleItemInput,
   Show,
   ShowInput,
 } from '../shared/types.js';
@@ -72,6 +77,12 @@ function requireTime(value: unknown): string {
   return text;
 }
 
+function requireBool(value: unknown, label: string, fallback: boolean): boolean {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'boolean') throw new HttpError(400, `${label}은(는) true/false 값이어야 합니다.`);
+  return value;
+}
+
 export function parseBoothInput(body: unknown): BoothInput {
   const raw = asRecord(body, '부스');
   const position = asRecord(raw.position ?? {}, '위치');
@@ -85,6 +96,8 @@ export function parseBoothInput(body: unknown): BoothInput {
       x: requirePercent(position.x, '위치 X'),
       y: requirePercent(position.y, '위치 Y'),
     },
+    isActive: requireBool(raw.isActive, '운영 상태', true),
+    isPublic: requireBool(raw.isPublic, '공개 여부', true),
   };
 }
 
@@ -96,6 +109,31 @@ export function parseShowInput(body: unknown): Omit<ShowInput, 'order'> {
     title: requireText(raw.title, '공연명', 60),
     genre: optionalText(raw.genre, '장르', 20),
     note: optionalText(raw.note, '비고', 60),
+  };
+}
+
+export function parseScheduleItemInput(body: unknown): ScheduleItemInput {
+  const raw = asRecord(body, '일정');
+  return {
+    time: requireTime(raw.time),
+    title: requireText(raw.title, '일정명', 60),
+    note: optionalText(raw.note, '비고', 80),
+  };
+}
+
+export function parseAnnouncementInput(body: unknown): AnnouncementInput {
+  const raw = asRecord(body, '공지');
+  return {
+    title: requireText(raw.title, '제목', 80),
+    body: requireText(raw.body, '내용', 2000),
+    isPublished: requireBool(raw.isPublished, '게시 여부', false),
+  };
+}
+
+export function parseSettingsInput(body: unknown): FestivalSettings {
+  const raw = asRecord(body, '설정');
+  return {
+    rankingsPublic: requireBool(raw.rankingsPublic, '순위 공개 여부', true),
   };
 }
 
@@ -124,6 +162,8 @@ export function normalizeFestivalData(value: unknown): FestivalData {
   const metaRaw = (raw.meta ?? {}) as Partial<FestivalMeta>;
   const booths = Array.isArray(raw.booths) ? raw.booths : [];
   const shows = Array.isArray(raw.shows) ? raw.shows : [];
+  const scheduleItems = Array.isArray(raw.scheduleItems) ? raw.scheduleItems : [];
+  const announcements = Array.isArray(raw.announcements) ? raw.announcements : [];
 
   return {
     meta: {
@@ -131,11 +171,24 @@ export function normalizeFestivalData(value: unknown): FestivalData {
       goal: typeof metaRaw.goal === 'number' && metaRaw.goal >= 0 ? metaRaw.goal : 0,
       stage: typeof metaRaw.stage === 'string' ? metaRaw.stage : seed.meta.stage,
     },
+    settings: (() => {
+      try {
+        return parseSettingsInput(raw.settings ?? {});
+      } catch {
+        return { rankingsPublic: true };
+      }
+    })(),
     booths: booths.flatMap((item, index): Booth[] => {
       try {
         const record = asRecord(item, '부스');
         const input = parseBoothInput(record);
-        return [{ id: typeof record.id === 'string' ? record.id : `booth-${index + 1}`, ...input }];
+        return [
+          {
+            id: typeof record.id === 'string' ? record.id : `booth-${index + 1}`,
+            ...input,
+            archivedAt: typeof record.archivedAt === 'string' ? record.archivedAt : null,
+          },
+        ];
       } catch {
         return [];
       }
@@ -158,5 +211,31 @@ export function normalizeFestivalData(value: unknown): FestivalData {
       })
       .sort((a, b) => a.order - b.order)
       .map((show, index) => ({ ...show, order: index + 1 })),
+    scheduleItems: scheduleItems.flatMap((item, index): ScheduleItem[] => {
+      try {
+        const record = asRecord(item, '일정');
+        const input = parseScheduleItemInput(record);
+        return [{ id: typeof record.id === 'string' ? record.id : `schedule-${index + 1}`, ...input }];
+      } catch {
+        return [];
+      }
+    }),
+    announcements: announcements.flatMap((item, index): Announcement[] => {
+      try {
+        const record = asRecord(item, '공지');
+        const input = parseAnnouncementInput(record);
+        const now = new Date().toISOString();
+        return [
+          {
+            id: typeof record.id === 'string' ? record.id : `announcement-${index + 1}`,
+            ...input,
+            createdAt: typeof record.createdAt === 'string' ? record.createdAt : now,
+            updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : now,
+          },
+        ];
+      } catch {
+        return [];
+      }
+    }),
   };
 }

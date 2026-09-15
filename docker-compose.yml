@@ -2,11 +2,18 @@ services:
   web:
     build: .
     ports:
-      - "8787:8787"
+      # reverse proxy(nginx)만 접근하도록 loopback 에만 바인딩한다.
+      - "127.0.0.1:8787:8787"
     environment:
       PORT: 8787
+      NODE_ENV: production
       FESTIVAL_DB: /app/data/festival.json
-      ADMIN_KEY: ${ADMIN_KEY:-}
+      ADMIN_DB: /app/data/admin.json
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET 환경변수를 설정해 주세요}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-8}
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:-https://admin.hanwol.site}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.hanwol.site}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
     volumes:
       - ./data:/app/data
     restart: unless-stopped

@@ -16,5 +16,7 @@ README.md
 
 # 런타임 데이터는 볼륨으로 마운트한다
 data/festival.json
+data/admin.json
+.env
 *.local
 .DS_Store

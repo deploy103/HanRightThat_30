@@ -1,0 +1,31 @@
+# hanwol.site / www.hanwol.site -> HanRightThat_30 컨테이너(127.0.0.1:8787) 리버스 프록시 예시.
+# 실제 서버 경로/인증서 경로는 환경에 맞게 조정한다.
+# 인증서는 certbot 기준 경로를 예시로 두었다 (예: certbot --nginx -d hanwol.site -d www.hanwol.site).
+
+server {
+    listen 80;
+    server_name hanwol.site www.hanwol.site;
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name hanwol.site www.hanwol.site;
+
+    ssl_certificate     /etc/letsencrypt/live/hanwol.site/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/hanwol.site/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
