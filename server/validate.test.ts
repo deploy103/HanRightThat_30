@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { HttpError, normalizeFestivalData, parseBoothInput, parseShowInput } from './validate.js';
+import {
+  HttpError,
+  normalizeFestivalData,
+  normalizeLandingState,
+  parseBoothInput,
+  parseLandingContent,
+  parseShowInput,
+} from './validate.js';
+import { createSeedLandingContent } from './seed.js';
 
 describe('parseBoothInput', () => {
   it('정상 입력을 정규화한다', () => {
@@ -19,7 +27,58 @@ describe('parseBoothInput', () => {
       position: { x: 61.5, y: 21 },
       isActive: true,
       isPublic: true,
+      summary: '',
+      description: '',
+      imagePath: '',
+      imageAlt: '',
     });
+  });
+
+  it('이미지 경로 형식이 아니면 거부한다', () => {
+    expect(() =>
+      parseBoothInput({
+        name: 'a',
+        team: 'b',
+        floor: 2,
+        amount: 0,
+        position: { x: 0, y: 0 },
+        imagePath: 'https://evil.example/x.png',
+      }),
+    ).toThrow(HttpError);
+    expect(() =>
+      parseBoothInput({
+        name: 'a',
+        team: 'b',
+        floor: 2,
+        amount: 0,
+        position: { x: 0, y: 0 },
+        imagePath: '/booth-images/../../etc/passwd.png',
+      }),
+    ).toThrow(HttpError);
+  });
+
+  it('이미지 경로가 있으면 대체 텍스트를 요구한다', () => {
+    expect(() =>
+      parseBoothInput({
+        name: 'a',
+        team: 'b',
+        floor: 2,
+        amount: 0,
+        position: { x: 0, y: 0 },
+        imagePath: '/booth-images/placeholder.svg',
+      }),
+    ).toThrow(HttpError);
+
+    const input = parseBoothInput({
+      name: 'a',
+      team: 'b',
+      floor: 2,
+      amount: 0,
+      position: { x: 0, y: 0 },
+      imagePath: '/booth-images/placeholder.svg',
+      imageAlt: '기본 이미지',
+    });
+    expect(input.imagePath).toBe('/booth-images/placeholder.svg');
   });
 
   it('모금액 0원을 허용한다', () => {
@@ -50,6 +109,83 @@ describe('parseBoothInput', () => {
 describe('parseShowInput', () => {
   it('HH:MM 형식이 아니면 거부한다', () => {
     expect(() => parseShowInput({ time: '1300', team: 'a', title: 'b' })).toThrow(HttpError);
+  });
+});
+
+describe('parseLandingContent', () => {
+  const base = createSeedLandingContent();
+
+  it('시드 기본값을 그대로 통과시킨다', () => {
+    expect(parseLandingContent(base)).toEqual(base);
+  });
+
+  it('종료 시각이 시작 시각보다 이르면 거부한다', () => {
+    expect(() =>
+      parseLandingContent({
+        ...base,
+        startsAt: '2026-10-10T13:00:00+09:00',
+        endsAt: '2026-10-10T09:00:00+09:00',
+      }),
+    ).toThrow(HttpError);
+  });
+
+  it('시간대 오프셋이 없는 날짜는 거부한다', () => {
+    expect(() => parseLandingContent({ ...base, startsAt: '2026-10-10T13:00:00' })).toThrow(HttpError);
+  });
+
+  it('날짜가 미정(null)이어도 게시를 막지 않는다', () => {
+    const content = parseLandingContent({ ...base, startsAt: null, endsAt: null });
+    expect(content.startsAt).toBeNull();
+    expect(content.endsAt).toBeNull();
+  });
+
+  it('https가 아닌 지도 링크는 거부한다', () => {
+    expect(() => parseLandingContent({ ...base, directionsUrl: 'http://maps.example.com' })).toThrow(HttpError);
+  });
+
+  it('행사명이 비어 있으면 거부한다', () => {
+    expect(() => parseLandingContent({ ...base, festivalName: '' })).toThrow(HttpError);
+  });
+
+  it('FAQ는 최대 20개까지만 허용한다', () => {
+    const faqItems = Array.from({ length: 21 }, (_, i) => ({ question: `Q${i}`, answer: `A${i}` }));
+    expect(() => parseLandingContent({ ...base, faqItems })).toThrow(HttpError);
+  });
+
+  it('FAQ 항목은 id가 없으면 자동으로 생성한다', () => {
+    const content = parseLandingContent({ ...base, faqItems: [{ question: 'Q', answer: 'A' }] });
+    expect(content.faqItems[0].id).toBeTruthy();
+  });
+});
+
+describe('normalizeLandingState', () => {
+  it('undefined를 넘기면 시드 상태를 반환한다', () => {
+    expect(normalizeLandingState(undefined).draft.theme).toBe('소리');
+  });
+
+  it('landing 필드가 없는 예전 파일도 안전한 기본값으로 보완한다', () => {
+    const data = normalizeFestivalData({ meta: {}, booths: [], shows: [] });
+    expect(data.landing.revision).toBe(0);
+    expect(data.landing.published).toBeNull();
+    expect(data.landing.draft.theme).toBe('소리');
+  });
+
+  it('같은 보완을 다시 실행해도 draft가 중복되지 않는다', () => {
+    const once = normalizeFestivalData({ meta: {}, booths: [], shows: [] });
+    const twice = normalizeFestivalData(once);
+    expect(twice.landing).toEqual(once.landing);
+  });
+
+  it('깨진 published는 버리고 draft는 보존한다', () => {
+    const data = normalizeFestivalData({
+      meta: {},
+      booths: [],
+      shows: [],
+      landing: { revision: 3, draft: createSeedLandingContent(), published: { broken: true }, publishedAt: '오늘' },
+    });
+    expect(data.landing.published).toBeNull();
+    expect(data.landing.publishedAt).toBeNull();
+    expect(data.landing.revision).toBe(3);
   });
 });
 

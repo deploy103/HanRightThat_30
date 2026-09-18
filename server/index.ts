@@ -26,6 +26,11 @@ export function createServer() {
   app.use('/api/admin', adminCors, noStore, adminRouter);
   app.use('/api/public', publicRouter);
 
+  // 위 라우터들과 매칭되지 않은 /api/* 요청은 SPA fallback이 가로채지 않고 JSON 404로 응답한다.
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: '요청한 API를 찾을 수 없습니다.' });
+  });
+
   // 빌드된 클라이언트가 있으면 같은 포트에서 함께 제공한다 (production).
   if (existsSync(clientDir)) {
     app.use(express.static(clientDir));

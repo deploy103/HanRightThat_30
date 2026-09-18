@@ -1,5 +1,5 @@
 import type { RankedBooth } from '../../shared/ranking';
-import type { Announcement, Booth, FestivalMeta, ScheduleItem, Show } from '../../shared/types';
+import type { Announcement, Booth, FestivalMeta, LandingContent, ScheduleItem, Show } from '../../shared/types';
 
 /** 공개 API(`/api/public/festival`) 응답 모양. 관리자 전용 필드는 포함되지 않는다. */
 export interface PublicFestival {
@@ -40,7 +40,14 @@ async function request<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+/** 공개 소개 API 응답 모양. 초안/revision/계정 정보는 포함되지 않는다. */
+export interface PublicLanding {
+  content: LandingContent | null;
+  publishedAt: string | null;
+}
+
 /** public 페이지는 조회 전용 client 다 — mutation 메서드를 두지 않는다. */
 export const api = {
   getFestival: () => request<PublicFestival>('/public/festival'),
+  getLanding: () => request<PublicLanding>('/public/landing'),
 };

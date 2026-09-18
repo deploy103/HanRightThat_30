@@ -1,4 +1,45 @@
-import type { FestivalData } from '../shared/types.js';
+import type { FestivalData, LandingContent, LandingState } from '../shared/types.js';
+
+/**
+ * 소개 콘텐츠 초기 시드. published는 항상 null로 시작한다 —
+ * 운영자가 초안을 검토하고 명시적으로 게시해야 공개된다 (요구사항2 §13).
+ */
+export function createSeedLandingContent(): LandingContent {
+  return {
+    // festivalName은 회차를 뺀 축제 이름만 담는다 — edition/year와 조합해
+    // "2026 · 제30회 한빛제"처럼 화면에서 만들어 보여주므로 여기에 "제30회"를 또 넣으면 중복된다.
+    festivalName: '한빛제',
+    edition: 30,
+    year: 2026,
+    theme: '소리',
+    heroTitle: '한빛제',
+    heroDescription: '',
+    startsAt: null,
+    endsAt: null,
+    venueName: '',
+    address: '',
+    directionsUrl: '',
+    themeTitle: '',
+    themeBody: '',
+    audienceInfo: '',
+    admissionInfo: '',
+    paymentInfo: '',
+    operatingHoursInfo: '',
+    contactInfo: '',
+    organizerText: '',
+    creditsText: '',
+    faqItems: [],
+  };
+}
+
+export function createSeedLandingState(): LandingState {
+  return {
+    revision: 0,
+    draft: createSeedLandingContent(),
+    published: null,
+    publishedAt: null,
+  };
+}
 
 /**
  * 최초 실행 시 한 번만 기록되는 기본 데이터.
@@ -171,5 +212,6 @@ export function createSeedData(): FestivalData {
       { id: 'schedule-close', time: '16:00', title: '폐회식 · 모금 결과 발표' },
     ],
     announcements: [],
+    landing: createSeedLandingState(),
   };
 }

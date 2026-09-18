@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Router, type Response } from 'express';
 import { rankBooths } from '../../shared/ranking.js';
-import type { Announcement, Booth, ScheduleItem, Show } from '../../shared/types.js';
+import type { Announcement, Booth, LandingState, ScheduleItem, Show } from '../../shared/types.js';
 import { loadAdminData } from '../adminDb.js';
 import { visibleBooths } from '../publicView.js';
+import { boothImageFileExists } from '../assets.js';
 import { listAuditLogs, recordAuditLog } from '../auditLog.js';
 import {
   createSession,
@@ -25,11 +26,28 @@ import {
   parseAnnouncementInput,
   parseBoothInput,
   parseIdList,
+  parseLandingContent,
   parseMetaInput,
   parseScheduleItemInput,
   parseSettingsInput,
   parseShowInput,
 } from '../validate.js';
+
+/** 새로 지정한 이미지 경로가 실제로 저장소에 있는지 확인한다 (형식 검사는 parseBoothInput이 이미 했다). */
+function assertBoothImageExists(imagePath: string): void {
+  if (imagePath && !boothImageFileExists(imagePath)) {
+    throw new HttpError(400, '이미지 경로에 해당하는 파일을 저장소에서 찾을 수 없습니다.');
+  }
+}
+
+function readExpectedRevision(body: unknown): number {
+  const raw = (body ?? {}) as { expectedRevision?: unknown };
+  const revision = typeof raw.expectedRevision === 'string' ? Number(raw.expectedRevision) : raw.expectedRevision;
+  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) {
+    throw new HttpError(400, 'expectedRevision 값이 올바르지 않습니다.');
+  }
+  return revision;
+}
 
 function clientIp(req: { ip?: string }): string {
   return req.ip ?? 'unknown';
@@ -149,6 +167,7 @@ adminRouter.post(
   '/booths',
   asyncRoute(async (req: AuthedRequest, res: Response) => {
     const input = parseBoothInput(req.body);
+    if (input.imagePath) assertBoothImageExists(input.imagePath);
     const booth: Booth = { id: randomUUID(), ...input, archivedAt: null };
     await mutate<void>((current) => [{ ...current, booths: [...current.booths, booth] }, undefined]);
     await audit(req, 'booth_create', 'booth', booth.id, null, booth);
@@ -160,6 +179,7 @@ adminRouter.put(
   '/booths/:id',
   asyncRoute(async (req: AuthedRequest, res: Response) => {
     const input = parseBoothInput(req.body);
+    if (input.imagePath) assertBoothImageExists(input.imagePath);
     const { id } = req.params;
     let before: Booth | undefined;
     const booth = await mutate<Booth>((current) => {
@@ -462,6 +482,60 @@ adminRouter.get(
   asyncRoute(async (_req, res) => {
     const data = await loadData();
     res.json({ rankingsPublic: data.settings.rankingsPublic, rankings: rankBooths(visibleBooths(data)) });
+  }),
+);
+
+// --- 소개 콘텐츠 (HANWOL-INTRO-V1) ---
+// 초안/게시 분리는 이 landing 상태에만 적용된다. 부스·공연·일정·공지는 기존 CRUD 흐름을 그대로 쓴다.
+
+adminRouter.get(
+  '/landing',
+  asyncRoute(async (_req, res) => {
+    res.json((await loadData()).landing);
+  }),
+);
+
+adminRouter.put(
+  '/landing',
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const expectedRevision = readExpectedRevision(req.body);
+    const content = parseLandingContent((req.body as { content?: unknown } | null)?.content);
+    let before: LandingState | undefined;
+    const landing = await mutate<LandingState>((current) => {
+      before = current.landing;
+      if (current.landing.revision !== expectedRevision) {
+        throw new HttpError(409, '다른 곳에서 먼저 저장되어 최신 내용과 다릅니다. 새로 불러온 뒤 다시 시도해 주세요.');
+      }
+      const next: LandingState = { ...current.landing, draft: content, revision: current.landing.revision + 1 };
+      return [{ ...current, landing: next }, next];
+    });
+    await audit(req, 'landing_draft_save', 'landing', 'landing', before?.draft, content);
+    res.json(landing);
+  }),
+);
+
+adminRouter.post(
+  '/landing/publish',
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const expectedRevision = readExpectedRevision(req.body);
+    let before: LandingState | undefined;
+    const landing = await mutate<LandingState>((current) => {
+      before = current.landing;
+      if (current.landing.revision !== expectedRevision) {
+        throw new HttpError(409, '다른 곳에서 먼저 저장되어 최신 내용과 다릅니다. 새로 불러온 뒤 다시 시도해 주세요.');
+      }
+      // 저장된 draft를 다시 검증한 뒤 깊은 복사하여 published로 옮긴다 (draft를 참조로 공유하지 않는다).
+      const validated = parseLandingContent(current.landing.draft);
+      const next: LandingState = {
+        ...current.landing,
+        published: JSON.parse(JSON.stringify(validated)),
+        publishedAt: new Date().toISOString(),
+        revision: current.landing.revision + 1,
+      };
+      return [{ ...current, landing: next }, next];
+    });
+    await audit(req, 'landing_publish', 'landing', 'landing', before?.published, landing.published);
+    res.json(landing);
   }),
 );
 

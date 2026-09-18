@@ -1,6 +1,7 @@
 import { useRef } from 'react';
+import type { PlayTab } from '../hooks/useRoute';
 
-export type TabId = 'rank' | 'map' | 'show';
+export type TabId = PlayTab;
 
 export interface TabDef {
   id: TabId;
@@ -9,9 +10,9 @@ export interface TabDef {
 }
 
 export const TABS: TabDef[] = [
-  { id: 'rank', title: '순위', sub: '부스 모금' },
+  { id: 'ranking', title: '순위', sub: '부스 모금' },
   { id: 'map', title: '지도', sub: '부스 위치' },
-  { id: 'show', title: '공연', sub: '무대 순서' },
+  { id: 'schedule', title: '공연', sub: '무대 순서' },
 ];
 
 interface Props {

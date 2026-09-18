@@ -1,7 +1,19 @@
 # 제30회 한빛제 안내 웹사이트 (public + API)
 
-부스 모금 순위 · 부스 배치도(2층/3층) · 공연 순서를 보여주는 공개 화면과,
+축제 소개(`/`) + 부스 모금 순위 · 부스 배치도(2층/3층) · 공연 순서를 보여주는 현장 화면(`/play/*`)과,
 이 데이터를 서빙하는 API 서버로 구성된다.
+
+| 경로 | 내용 |
+|---|---|
+| `/` | 축제 소개(주제, 첫 화면, 부스/공연 미리보기, 이용 안내, FAQ, 공지) |
+| `/play` | `/play/map` 으로 즉시 이동 |
+| `/play/map` | 부스 배치도. `?booth=<id>` 로 특정 부스에 딥링크 |
+| `/play/ranking` | 부스 모금 순위 |
+| `/play/schedule` | 공연 순서 |
+
+소개(`/`)의 콘텐츠는 초안/게시가 분리된 별도 데이터(`LandingContent`, HANWOL-INTRO-V1 계약)이며,
+운영자가 [`HanRightThat_30_admin`](../HanRightThat_30_admin)의 "소개 페이지" 메뉴에서 편집·게시한다.
+부스·공연·일정·공지는 기존과 동일하게 저장 즉시 반영된다 — 초안/게시 분리는 소개 문구에만 적용된다.
 
 **관리자 화면은 이 저장소에 없다.** 별도 저장소 [`HanRightThat_30_admin`](../HanRightThat_30_admin)이
 브라우저에서 이 저장소의 `/api/admin/*` 를 세션 쿠키로 직접 호출한다. 두 저장소는 HTTP API 로만
@@ -42,6 +54,24 @@ npm start
 - 공개 화면: `http://localhost:8787/`
 - 이 저장소에는 더 이상 `/admin` 화면이 없다. 관리자 대시보드는 `HanRightThat_30_admin` 을 별도로 실행해서 접속한다.
 
+### `HanRightThat_30_admin` 을 로컬에서 함께 띄울 때
+
+관리자 앱(기본 `http://localhost:5174`)에서 로그인/저장을 시도하면 이 서버가 CORS로 막는다 —
+`ADMIN_ORIGIN` 이 설정돼 있지 않으면 `/api/admin/*` 는 어떤 Origin 의 자격증명 포함 요청도 허용하지
+않기 때문이다(운영과 동일한 안전한 기본값). 로컬에서 두 앱을 함께 테스트하려면:
+
+```bash
+ADMIN_ORIGIN=http://localhost:5174 npm run dev
+```
+
+관리자 앱 포트를 바꿨다면 그 값을 그대로 맞춰준다.
+
+### WSL(Windows)에서 `/mnt/c/...` 경로로 작업할 때
+
+`/mnt/c/...` 처럼 Windows 드라이브를 마운트한 경로는 inotify 파일 변경 이벤트가 오지 않아, 코드를
+고쳐도 Vite 개발 서버(HMR)가 반영하지 못하는 경우가 있다. `vite.config.ts` 의 `server.watch.usePolling`
+을 이미 켜 두었으니 보통은 그대로 동작하지만, 여전히 반영이 안 되면 `npm run dev` 를 재시작한다.
+
 ## 검증
 
 ```bash
@@ -80,6 +110,12 @@ docker compose exec web node dist-server/server/createAdmin.js --username admin
 
 `--password` 를 생략하면 터미널에서 비밀번호를 프롬프트로 물어본다(쉘 히스토리에 남지 않음). 최소 8자.
 
+**주의: 이미 떠 있는 서버 프로세스와 동시에 실행하지 말 것.** `data/admin.json` 은 프로세스별
+인메모리 캐시로 관리된다(`server/jsonStore.ts`). 서버가 실행 중일 때 이 CLI로 계정을 만들면 파일에는
+기록되지만, 이미 떠 있던 서버 프로세스는 이전 상태를 캐시에 들고 있다가 다음 쓰기(로그인 실패 감사
+로그 등) 시점에 자신의 캐시로 파일을 덮어써 방금 만든 계정이 조용히 사라질 수 있다(`SECURITY_REVIEW.md`
+§3.1 에서 실제로 재현·기록함). 서버를 잠깐 멈추고 실행하거나, 실행 직후 서버를 재시작한다.
+
 ## 데이터 구조
 
 `data/festival.json`:
@@ -106,11 +142,30 @@ docker compose exec web node dist-server/server/createAdmin.js --username admin
     { "id": "show-opening", "order": 1, "time": "13:00", "team": "밴드부", "title": "오프닝 무대", "genre": "밴드" }
   ],
   "scheduleItems": [{ "id": "schedule-open", "time": "12:30", "title": "개회식" }],
-  "announcements": []
+  "announcements": [],
+  "landing": {
+    "revision": 0,
+    "draft": { "festivalName": "한빛제", "edition": 30, "year": 2026, "theme": "소리", "...": "..." },
+    "published": null,
+    "publishedAt": null
+  }
 }
 ```
 
+`landing`(HANWOL-INTRO-V1)은 소개 페이지 콘텐츠다. `draft`는 관리자가 저장한 최신 초안, `published`는
+운영자가 명시적으로 게시한 스냅샷(깊은 복사)이다 — 부스/공연/일정/공지처럼 저장 즉시 반영되지 않는다.
+`festivalName`은 회차를 뺀 이름만 담는다(`edition`/`year`와 조합해 화면에서 "2026 · 제30회 한빛제"처럼
+만들어 보여주므로, 여기에 "제30회"를 또 넣으면 화면에 중복 표시된다). 전체 필드는 `shared/types.ts`의
+`LandingContent` 참고.
+
 `data/admin.json` 은 `adminUsers`(비밀번호는 scrypt 해시만 저장) / `sessions`(토큰은 sha256 해시만 저장) / `auditLogs` 를 담는다. 두 파일 모두 `.gitignore` 에 있으므로 커밋되지 않는다.
+
+### 부스 이미지
+
+`public/booth-images/` 아래에 정적 이미지를 추가하면 관리자에서 부스의 `imagePath`로
+`/booth-images/파일명.ext` 를 입력해 소개 페이지 부스 카드에 쓸 수 있다. 업로드 기능은 없다 — 배포
+서버의 이 디렉터리에 파일을 직접 올린다. 허용 확장자: `png`/`jpg`/`jpeg`/`webp`/`svg`. 외부 URL,
+`data:`, 경로 탈출은 서버가 거부한다.
 
 ## API
 
@@ -118,12 +173,12 @@ docker compose exec web node dist-server/server/createAdmin.js --username admin
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| GET | `/api/public/festival` | 공개 부스 + 순위 + 공연 + 일정 + 게시된 공지를 한 번에 (기존 공개 화면이 쓰는 응답) |
+| GET | `/api/public/festival` | 공개 부스 + 순위 + 공연 + 일정 + 게시된 공지를 한 번에 (소개 페이지 `/` 가 쓰는 응답) |
 | GET | `/api/public/booths` | 공개(`isPublic`) + 보관되지 않은 부스만 |
-| GET | `/api/public/performances` | 공연 순서 |
-| GET | `/api/public/schedule` | 축제 전체 일정 (현재 공개 화면에는 아직 노출 안 함, API 만 존재) |
+| GET | `/api/public/performances` | 공연 순서 (`/play/schedule` 이 씀) |
+| GET | `/api/public/schedule` | 축제 전체 일정 — 소개 페이지 `/` 의 "축제 전체 일정" 구역이 씀 |
 | GET | `/api/public/rankings` | 서버가 계산한 순위. `rankingsPublic=false` 면 빈 배열 |
-| GET | `/api/public/announcements` | 게시된 공지만 (현재 공개 화면에는 아직 노출 안 함) |
+| GET | `/api/public/announcements` | 게시된 공지만 — 소개 페이지 `/` 의 "공지" 구역이 씀 |
 
 순위는 항상 서버(`shared/ranking.ts`)가 계산해서 내려준다 — 클라이언트는 재계산하지 않는다.
 
@@ -143,6 +198,16 @@ docker compose exec web node dist-server/server/createAdmin.js --username admin
 | GET | `/api/admin/rankings` | 관리자용 순위 미리보기 (비공개 상태여도 항상 보임) |
 | GET | `/api/admin/audit-logs?limit=200` | 감사로그 |
 | GET | `/api/admin/me` | 로그인한 관리자 정보 |
+| GET | `/api/admin/landing` | 소개 콘텐츠 전체 상태(`revision`/`draft`/`published`/`publishedAt`) |
+| PUT | `/api/admin/landing` | `{ expectedRevision, content }` — draft만 저장, revision 불일치 시 409 |
+| POST | `/api/admin/landing/publish` | `{ expectedRevision }` — 저장된 draft를 published로 깊은 복사, revision 불일치 시 409 |
+
+소개 공개 엔드포인트는 `/api/public/*` 에 `GET /api/public/landing` 로 추가됐다 — 인증 불필요,
+`{ content, publishedAt }` 만 반환(초안/revision/계정 정보는 절대 포함하지 않음), 응답에
+`Cache-Control: no-store`.
+
+매칭되는 라우터가 없는 `/api/*` 요청은 SPA fallback이 가로채지 않고 `{"error":"..."}` 형태의
+JSON 404를 반환한다(`server/index.ts`).
 
 ## 인증 설계
 
@@ -160,10 +225,45 @@ docker compose exec web node dist-server/server/createAdmin.js --username admin
 
 ## 화면 구성
 
-- `src/festival/` 공개 화면 (RankingView / MapView / ScheduleView)
+- `src/landing/` 소개 화면(`/`) — LandingPage/Nav/Hero/Theme/Booths/Shows/Schedule/Info/Announcements/Footer
+- `src/festival/` 현장 화면(`/play/*`) (RankingView / MapView / ScheduleView)
+- `src/hooks/useRoute.ts` 이 프로젝트의 유일한 라우터. react-router 등을 새로 설치하지 않고
+  `history.pushState`/`popstate` 로 `/`, `/play`, `/play/map|ranking|schedule` 만 처리하는 최소 구현이다.
 - `src/data/floorPlans.ts` 층 배치도 형상 데이터 (2층/3층이 같은 `FloorPlan` 컴포넌트를 공유)
-- `src/styles/tokens.css` 색·폰트·레이아웃 토큰
+- `src/styles/tokens.css` 색·폰트·레이아웃 토큰, `src/styles/landing.css` 소개 화면 전용 스타일
 - `shared/` 클라이언트/서버가 함께 쓰는 타입(`types.ts`)과 순위 계산 로직(`ranking.ts`)
+
+## 데이터 백업 · 이행 · 복구
+
+운영 데이터는 `data/festival.json` + `data/admin.json` 두 파일뿐이다(원자적 쓰기, `.gitignore`).
+
+**배포 전 백업**
+
+```bash
+cp data/festival.json data/festival.json.bak-$(date +%Y%m%d%H%M)
+cp data/admin.json data/admin.json.bak-$(date +%Y%m%d%H%M)
+```
+
+**이번 버전(landing 필드 추가)으로 올릴 때**
+
+- 새 서버가 기존 `data/festival.json`을 읽으면 `landing` 필드가 없어도 바로 뜬다 —
+  `server/validate.ts`의 `normalizeLandingState`가 안전한 기본 draft(published=null)로 메모리상
+  보완한다. 파일에 `landing`이 즉시 기록되지는 않고, 관리자가 처음 초안을 저장/게시할 때 디스크에
+  반영된다. 여러 번 재시작해도 중복되지 않는다(멱등).
+- 기존 부스에 `summary`/`description`/`imagePath`/`imageAlt`가 없어도 그대로 동작한다(모두 선택 필드).
+- **되돌리기(롤백)**: 이번 버전 서버가 `landing`을 기록한 뒤 이전 버전 서버로 롤백해도, 이전 버전은
+  모르는 필드를 무시하고 읽기만 하므로 `booths`/`shows`/`scheduleItems`/`announcements`는 그대로
+  보존된다. 다만 이전 버전은 `landing`을 다시 쓰지 않으므로, 롤백 중 관리자가 소개를 편집하면 그
+  변경은 저장되지 않는다(부스/공연 등 기존 기능은 영향 없음).
+
+**복구**
+
+```bash
+docker compose down
+cp data/festival.json.bak-<시각> data/festival.json
+cp data/admin.json.bak-<시각> data/admin.json
+docker compose up -d --build
+```
 
 ## Docker / 배포
 

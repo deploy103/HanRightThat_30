@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Booth, FloorId } from '../../shared/types';
 import { PanelHeading } from '../components/PanelHeading';
 import { FLOOR_IDS, FLOOR_PLANS } from '../data/floorPlans';
@@ -9,12 +9,31 @@ import { FloorSelector } from './FloorSelector';
 
 interface Props {
   booths: Booth[];
+  /** /play/map?booth=<id> 로 들어왔을 때 한 번만 적용할 딥링크 대상. */
+  initialBoothId?: string;
 }
 
-export function MapView({ booths }: Props) {
+export function MapView({ booths, initialBoothId }: Props) {
   const [floor, setFloor] = useState<FloorId>(2);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deepLinkNotFound, setDeepLinkNotFound] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
+  const appliedDeepLink = useRef(false);
+
+  // 딥링크는 데이터가 처음 로딩된 시점에 한 번만 적용한다 — 8초 주기 재조회로 사용자가
+  // 직접 고른 선택을 되돌리면 안 된다. 대상이 없으면(비공개/삭제/오타) 안내만 하고 지도는 그대로 쓴다.
+  useEffect(() => {
+    if (!initialBoothId || appliedDeepLink.current || booths.length === 0) return;
+    const target = booths.find((booth) => booth.id === initialBoothId);
+    appliedDeepLink.current = true;
+    if (target) {
+      setFloor(target.floor);
+      setSelectedId(target.id);
+      mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      setDeepLinkNotFound(true);
+    }
+  }, [initialBoothId, booths]);
 
   const counts = useMemo(
     () =>
@@ -54,6 +73,12 @@ export function MapView({ booths }: Props) {
         accent="지도"
         note="핀이나 목록을 누르면 위치를 표시합니다"
       />
+
+      {deepLinkNotFound ? (
+        <p className="empty empty-error" role="alert">
+          부스를 찾을 수 없습니다. 아래 전체 지도에서 위치를 확인해 주세요.
+        </p>
+      ) : null}
 
       {booths.length === 0 ? (
         <p className="empty">등록된 부스가 없습니다. 관리 화면에서 부스를 추가해 주세요.</p>
