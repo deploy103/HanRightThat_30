@@ -3,16 +3,20 @@ import type {
   AnnouncementInput,
   Booth,
   BoothInput,
+  FaqItem,
   FestivalData,
   FestivalMeta,
   FestivalSettings,
   FloorId,
+  LandingContent,
+  LandingState,
   ScheduleItem,
   ScheduleItemInput,
   Show,
   ShowInput,
 } from '../shared/types.js';
-import { createSeedData } from './seed.js';
+import { isWellFormedBoothImagePath } from './assets.js';
+import { createSeedData, createSeedLandingState } from './seed.js';
 
 export class HttpError extends Error {
   constructor(
@@ -83,9 +87,31 @@ function requireBool(value: unknown, label: string, fallback: boolean): boolean 
   return value;
 }
 
+/** 값이 없거나 빈 문자열이면 ''(미입력)을 허용하는 자유 텍스트. 자유 HTML은 저장하지 않으므로 이스케이프는 렌더링 쪽에서 담당한다. */
+function optionalLongText(value: unknown, label: string, max: number): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string') throw new HttpError(400, `${label} 값이 올바르지 않습니다.`);
+  if (value.length > max) throw new HttpError(400, `${label}은(는) ${max}자 이하로 입력해 주세요.`);
+  return value;
+}
+
+/** 형식만 검사한다 (외부 URL/data:/경로 탈출 차단). 파일 존재 여부는 라우트에서 별도로 확인한다. */
+function optionalImagePathFormat(value: unknown, label: string): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string' || !isWellFormedBoothImagePath(value)) {
+    throw new HttpError(400, `${label}은(는) /booth-images/ 아래의 png·jpg·jpeg·webp·svg 파일 경로여야 합니다.`);
+  }
+  return value;
+}
+
 export function parseBoothInput(body: unknown): BoothInput {
   const raw = asRecord(body, '부스');
   const position = asRecord(raw.position ?? {}, '위치');
+  const imagePath = optionalImagePathFormat(raw.imagePath, '이미지 경로');
+  const imageAlt = optionalText(raw.imageAlt, '이미지 대체 텍스트', 200) ?? '';
+  if (imagePath && !imageAlt) {
+    throw new HttpError(400, '이미지를 사용하려면 대체 텍스트를 입력해 주세요.');
+  }
   return {
     name: requireText(raw.name, '부스명', 40),
     team: requireText(raw.team, '팀/학급명', 40),
@@ -98,6 +124,10 @@ export function parseBoothInput(body: unknown): BoothInput {
     },
     isActive: requireBool(raw.isActive, '운영 상태', true),
     isPublic: requireBool(raw.isPublic, '공개 여부', true),
+    summary: optionalText(raw.summary, '부스 소개 요약', 300) ?? '',
+    description: optionalLongText(raw.description, '부스 상세 설명', 3000),
+    imagePath,
+    imageAlt,
   };
 }
 
@@ -146,6 +176,122 @@ export function parseMetaInput(body: unknown): FestivalMeta {
   };
 }
 
+// ---------------------------------------------------------------------------
+// 소개 콘텐츠 (HANWOL-INTRO-V1) — 관리자 요구사항2.md와 동일한 계약을 따른다.
+// ---------------------------------------------------------------------------
+
+const HTTPS_URL_RE = /^https:\/\/\S+$/;
+// 시간대 오프셋을 포함한 ISO 8601 (예: 2026-10-09T13:00:00+09:00 또는 ...Z)
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/;
+
+function requirePositiveInt(value: unknown, label: string): number {
+  const num = typeof value === 'string' ? Number(value) : value;
+  if (typeof num !== 'number' || !Number.isInteger(num) || num <= 0) {
+    throw new HttpError(400, `${label}은(는) 1 이상의 정수여야 합니다.`);
+  }
+  return num;
+}
+
+function requireYear(value: unknown, label: string): number {
+  const num = typeof value === 'string' ? Number(value) : value;
+  if (typeof num !== 'number' || !Number.isInteger(num) || num < 2000 || num > 2100) {
+    throw new HttpError(400, `${label}은(는) 2000~2100 사이의 정수여야 합니다.`);
+  }
+  return num;
+}
+
+function optionalHttpsUrl(value: unknown, label: string): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string' || !HTTPS_URL_RE.test(value)) {
+    throw new HttpError(400, `${label}은(는) https:// 로 시작하는 URL이어야 합니다.`);
+  }
+  return value;
+}
+
+function optionalIsoDateTime(value: unknown, label: string): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !ISO_DATETIME_RE.test(value)) {
+    throw new HttpError(400, `${label}은(는) 시간대 오프셋을 포함한 ISO 날짜 형식이거나 비워 두어야 합니다.`);
+  }
+  return value;
+}
+
+function parseFaqItems(value: unknown): FaqItem[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new HttpError(400, 'FAQ 목록이 올바르지 않습니다.');
+  if (value.length > 20) throw new HttpError(400, 'FAQ는 최대 20개까지 등록할 수 있습니다.');
+  return value.map((item, index) => {
+    const raw = asRecord(item, `FAQ ${index + 1}`);
+    return {
+      id: typeof raw.id === 'string' && raw.id.trim() !== '' ? raw.id : `faq-${index + 1}-${Date.now()}`,
+      question: requireText(raw.question, `FAQ ${index + 1} 질문`, 200),
+      answer: requireText(raw.answer, `FAQ ${index + 1} 답변`, 2000),
+    };
+  });
+}
+
+export function parseLandingContent(body: unknown): LandingContent {
+  const raw = asRecord(body, '소개 콘텐츠');
+  const startsAt = optionalIsoDateTime(raw.startsAt, '시작 시각');
+  const endsAt = optionalIsoDateTime(raw.endsAt, '종료 시각');
+  if (startsAt && endsAt && new Date(endsAt).getTime() < new Date(startsAt).getTime()) {
+    throw new HttpError(400, '종료 시각은 시작 시각 이후여야 합니다.');
+  }
+  return {
+    festivalName: requireText(raw.festivalName, '행사명', 80),
+    edition: requirePositiveInt(raw.edition, '회차'),
+    year: requireYear(raw.year, '연도'),
+    theme: requireText(raw.theme, '주제', 80),
+    heroTitle: requireText(raw.heroTitle, '첫 화면 제목', 120),
+    heroDescription: optionalLongText(raw.heroDescription, '첫 화면 소개', 500),
+    startsAt,
+    endsAt,
+    venueName: optionalLongText(raw.venueName, '장소명', 120),
+    address: optionalLongText(raw.address, '주소', 300),
+    directionsUrl: optionalHttpsUrl(raw.directionsUrl, '지도 링크'),
+    themeTitle: optionalLongText(raw.themeTitle, '주제 소개 제목', 120),
+    themeBody: optionalLongText(raw.themeBody, '주제 소개 본문', 3000),
+    audienceInfo: optionalLongText(raw.audienceInfo, '참여 대상 안내', 1000),
+    admissionInfo: optionalLongText(raw.admissionInfo, '입장 안내', 1000),
+    paymentInfo: optionalLongText(raw.paymentInfo, '결제 안내', 1000),
+    operatingHoursInfo: optionalLongText(raw.operatingHoursInfo, '운영 시간 안내', 1000),
+    contactInfo: optionalLongText(raw.contactInfo, '문의 안내', 1000),
+    organizerText: optionalLongText(raw.organizerText, '주최 표기', 300),
+    creditsText: optionalLongText(raw.creditsText, '제작진 표기', 300),
+    faqItems: parseFaqItems(raw.faqItems),
+  };
+}
+
+/** 저장 파일에 landing이 없거나 일부가 깨져 있어도 안전한 기본값으로 보완한다 (다시 실행해도 중복되지 않는다). */
+export function normalizeLandingState(value: unknown): LandingState {
+  const seed = createSeedLandingState();
+  if (typeof value !== 'object' || value === null) return seed;
+  const raw = value as Partial<LandingState>;
+
+  const draft = (() => {
+    try {
+      return parseLandingContent(raw.draft ?? seed.draft);
+    } catch {
+      return seed.draft;
+    }
+  })();
+
+  const published = (() => {
+    if (raw.published === undefined || raw.published === null) return null;
+    try {
+      return parseLandingContent(raw.published);
+    } catch {
+      return null;
+    }
+  })();
+
+  const revision =
+    typeof raw.revision === 'number' && Number.isInteger(raw.revision) && raw.revision >= 0 ? raw.revision : 0;
+  const publishedAt = published && typeof raw.publishedAt === 'string' ? raw.publishedAt : null;
+
+  return { revision, draft, published, publishedAt };
+}
+
 export function parseIdList(body: unknown): string[] {
   const raw = asRecord(body, '순서');
   const ids = raw.ids;
@@ -178,6 +324,7 @@ export function normalizeFestivalData(value: unknown): FestivalData {
         return { rankingsPublic: true };
       }
     })(),
+    landing: normalizeLandingState(raw.landing),
     booths: booths.flatMap((item, index): Booth[] => {
       try {
         const record = asRecord(item, '부스');

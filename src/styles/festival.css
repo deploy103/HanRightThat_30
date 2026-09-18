@@ -39,12 +39,61 @@
   box-shadow: 4px 4px 0 var(--hot);
 }
 
+.hero-heading {
+  margin: 18px 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(48px, 9vw, 108px);
+  line-height: 0.94;
+  letter-spacing: -0.01em;
+  color: var(--bone);
+  text-shadow: 6px 6px 0 var(--hot);
+}
+
 .lede {
   margin: 18px 0 20px;
   color: var(--dim);
   font-size: 19px;
   font-weight: 700;
   letter-spacing: 0.03em;
+}
+
+.hero-facts {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+  border: 2px solid var(--wire);
+  background: rgba(0, 0, 0, 0.35);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.hero-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 20px;
+  border-right: 2px solid var(--wire);
+}
+
+.hero-fact:last-child {
+  border-right: 0;
+}
+
+.hero-fact-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+.hero-fact-value {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--acid);
+  white-space: nowrap;
 }
 
 /* ---------- EQ 스트립 ---------- */
@@ -167,7 +216,7 @@
 
 .phead h2 {
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: clamp(28px, 4.5vw, 40px);
   font-weight: 400;
   line-height: 1;
   letter-spacing: -0.01em;
@@ -945,8 +994,12 @@
     padding: 0 18px;
   }
 
-  .phead h2 {
-    font-size: 30px;
+  .hero-heading {
+    text-shadow: 4px 4px 0 var(--hot);
+  }
+
+  .hero-fact {
+    padding: 8px 14px;
   }
 
   .eq-strip {
@@ -982,6 +1035,22 @@
 }
 
 @media (max-width: 560px) {
+  .hero-heading {
+    text-shadow: 3px 3px 0 var(--hot);
+  }
+
+  .hero-facts {
+    width: 100%;
+  }
+
+  .hero-fact {
+    flex: 1 1 auto;
+  }
+
+  .hero-fact-value {
+    font-size: 15px;
+  }
+
   .booth-pin-label {
     display: none;
   }

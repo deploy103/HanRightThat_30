@@ -3,6 +3,7 @@ import { rankBooths } from '../../shared/ranking.js';
 import { loadData } from '../db.js';
 import { publicFestivalView, visibleBooths } from '../publicView.js';
 import { asyncRoute } from '../routeUtils.js';
+import { noStore } from '../securityHeaders.js';
 
 /**
  * 조회 전용 공개 API. 인증이 없고 GET 만 존재한다.
@@ -57,5 +58,15 @@ publicRouter.get(
   asyncRoute(async (_req, res) => {
     const data = await loadData();
     res.json(data.announcements.filter((announcement) => announcement.isPublished));
+  }),
+);
+
+publicRouter.get(
+  '/landing',
+  noStore,
+  asyncRoute(async (_req, res) => {
+    const data = await loadData();
+    // 초안/revision/계정 정보는 절대 포함하지 않는다 — published만 노출한다.
+    res.json({ content: data.landing.published, publishedAt: data.landing.publishedAt });
   }),
 );

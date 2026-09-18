@@ -10,6 +10,9 @@ export default defineConfig({
     proxy: {
       '/api': { target: API_TARGET, changeOrigin: true },
     },
+    // WSL에서 /mnt/c/... 처럼 Windows 드라이브를 마운트한 경로는 inotify 이벤트가 오지 않아
+    // 파일을 고쳐도 HMR이 반영되지 않는 경우가 있다 — 폴링으로 우회한다.
+    watch: { usePolling: true },
   },
   build: {
     outDir: 'dist',

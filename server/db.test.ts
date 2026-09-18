@@ -58,3 +58,56 @@ describe('영속 저장', () => {
     expect(reloaded.booths).toHaveLength(9);
   });
 });
+
+describe('소개 콘텐츠(landing) 영속성', () => {
+  it('최초 실행 시 draft는 시드값, published는 null이다', async () => {
+    const data = await db.loadData();
+    expect(data.landing.revision).toBe(0);
+    expect(data.landing.published).toBeNull();
+    expect(data.landing.draft.festivalName).toBe('한빛제');
+  });
+
+  it('초안 저장은 draft만 바꾸고 published는 그대로 둔다 (재시작 후에도 유지)', async () => {
+    await db.mutate<void>((current: FestivalData) => [
+      {
+        ...current,
+        landing: {
+          ...current.landing,
+          draft: { ...current.landing.draft, heroTitle: '수정된 제목' },
+          revision: current.landing.revision + 1,
+        },
+      },
+      undefined,
+    ]);
+
+    db.resetCache();
+    const reloaded = await db.loadData();
+    expect(reloaded.landing.draft.heroTitle).toBe('수정된 제목');
+    expect(reloaded.landing.published).toBeNull();
+    expect(reloaded.landing.revision).toBe(1);
+  });
+
+  it('게시하면 published가 draft의 깊은 복사본이 되어 이후 draft 변경에 영향받지 않는다', async () => {
+    await db.mutate<void>((current: FestivalData) => [
+      {
+        ...current,
+        landing: {
+          ...current.landing,
+          published: JSON.parse(JSON.stringify(current.landing.draft)),
+          publishedAt: new Date().toISOString(),
+          revision: current.landing.revision + 1,
+        },
+      },
+      undefined,
+    ]);
+    await db.mutate<void>((current: FestivalData) => [
+      { ...current, landing: { ...current.landing, draft: { ...current.landing.draft, heroTitle: '또 수정' } } },
+      undefined,
+    ]);
+
+    db.resetCache();
+    const reloaded = await db.loadData();
+    expect(reloaded.landing.published?.heroTitle).toBe('수정된 제목');
+    expect(reloaded.landing.draft.heroTitle).toBe('또 수정');
+  });
+});

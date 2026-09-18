@@ -1,0 +1,998 @@
+/* 소개 페이지(HANWOL-INTRO-V1) 전용 스타일. tokens.css 색·폰트를 그대로 쓰고,
+   /play 화면(festival.css)의 "네온 브루탈리즘" 톤(굵은 테두리, 오프셋 그림자, 기울인 대문자)을 잇는다. */
+
+/* ---------- 공통 버튼/유틸 ---------- */
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 22px;
+  font-family: var(--font-body);
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid var(--wire);
+}
+
+.btn-primary {
+  background: var(--acid);
+  color: var(--void);
+  border-color: var(--acid);
+  box-shadow: 5px 5px 0 var(--hot);
+}
+
+.btn-primary:hover {
+  box-shadow: 2px 2px 0 var(--hot);
+  transform: translate(3px, 3px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--bone);
+}
+
+.btn-secondary:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.btn-lg {
+  min-height: 52px;
+  padding: 14px 28px;
+  font-size: 17px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid var(--wire);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.pill-ended {
+  border-color: var(--hot);
+  color: var(--hot);
+}
+
+.section-eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--acid);
+}
+
+.landing-section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(26px, 4vw, 38px);
+  letter-spacing: -0.01em;
+  transform: skewX(-6deg);
+  transform-origin: left;
+}
+
+.landing-section {
+  position: relative;
+  padding: 60px 0 56px;
+  /* 상단 sticky nav(64px) 아래로 앵커 이동 시 섹션 제목이 가려지지 않도록 여유를 둔다. */
+  scroll-margin-top: 84px;
+}
+
+#top {
+  scroll-margin-top: 0;
+}
+
+/* /play 화면의 PanelHeading이 쓰는 톱니 구분선(.zig, base.css)을 소개 페이지에도 재사용한다 —
+   모든 경계에 쓰면 밋밋해지므로 배경이 번갈아 바뀌는 지점에서만 쓴다. */
+.landing-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 9px;
+  background: repeating-linear-gradient(135deg, var(--hot) 0 9px, transparent 9px 18px);
+}
+
+.landing-section:first-of-type::before {
+  display: none;
+}
+
+.landing-section:nth-of-type(odd) {
+  background: var(--deck);
+}
+
+/* ---------- 섹션 제목(고스트 넘버 + 라벨) ---------- */
+.landing-section-head {
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.landing-section-index {
+  position: absolute;
+  top: -30px;
+  right: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(64px, 9vw, 126px);
+  line-height: 1;
+  color: var(--wire);
+  opacity: 0.6;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.landing-section-headrow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ---------- 스크롤 진입 연출 ---------- */
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+
+.landing-reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- 상단 네비게이션 ---------- */
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(11, 10, 18, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 2px solid var(--wire);
+}
+
+.landing-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  gap: 12px;
+}
+
+.landing-nav-brand {
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: var(--bone);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.landing-nav-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 2px solid var(--wire);
+  color: var(--bone);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.landing-nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.landing-nav-link {
+  color: var(--dim);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.landing-nav-link:hover {
+  color: var(--bone);
+}
+
+.landing-nav-cta {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--acid);
+  color: var(--void);
+  font-weight: 900;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 3px 3px 0 var(--hot);
+}
+
+/* ---------- 첫 화면 (히어로 슬라이드) ---------- */
+.landing-hero {
+  position: relative;
+  padding-top: 44px;
+  overflow: hidden;
+}
+
+/* 별도 글로우 레이어를 여기서 추가하지 않는다 — body 배경(base.css)이 이미 화면 상단에 hot,
+   좌측에 cyan, 우측에 violet 라디얼 글로우를 고정 배치해 둬서 히어로 영역과 정확히 겹친다.
+   중복 레이어를 얹으면 오히려 탁해져서 뺐다. */
+
+.landing-hero-inner {
+  position: relative;
+  z-index: 3;
+}
+
+.landing-hero-slides {
+  position: relative;
+  min-height: 260px;
+}
+
+.landing-hero-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+  pointer-events: none;
+}
+
+.landing-hero-slide.is-active {
+  position: relative;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.landing-hero-title {
+  margin: 20px 0 10px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(40px, 8vw, 92px);
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  color: var(--bone);
+  text-shadow: 6px 6px 0 var(--hot);
+}
+
+.landing-hero-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 4px 0 26px;
+}
+
+.landing-hero-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.landing-hero-dot {
+  width: 28px;
+  height: 4px;
+  padding: 0;
+  border: 0;
+  background: var(--wire);
+  cursor: pointer;
+}
+
+.landing-hero-dot.is-active {
+  background: var(--acid);
+}
+
+.landing-hero-pause {
+  border: 1px solid var(--wire);
+  background: transparent;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.landing-hero-pause:hover {
+  color: var(--bone);
+  border-color: var(--dim);
+}
+
+.landing-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 28px 0 40px;
+}
+
+/* ---------- 준비 중 화면 ---------- */
+.landing-status {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.landing-status-preparing {
+  padding-top: 40px;
+}
+
+/* ---------- 주제 소개 ---------- */
+.landing-theme-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+}
+
+.landing-theme-copy {
+  min-width: 0;
+}
+
+.landing-theme-body {
+  max-width: 720px;
+  margin-top: 4px;
+  color: var(--bone);
+  font-size: 17px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+/* 주제 단어를 세로로 크게 흘려 편집 여백처럼 보여주는 장식. 정보량이 없으므로 스크린리더에서 숨긴다. */
+.landing-theme-mark {
+  writing-mode: vertical-rl;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(48px, 6vw, 84px);
+  letter-spacing: 0.04em;
+  color: transparent;
+  background: linear-gradient(180deg, var(--acid), var(--cyan) 55%, var(--hot));
+  -webkit-background-clip: text;
+  background-clip: text;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+/* ---------- 부스 미리보기 ---------- */
+
+.landing-booth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.landing-booth-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--deck2);
+  border: 2px solid var(--wire);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.15s,
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.landing-booth-card:hover {
+  border-color: var(--acid);
+  transform: translateY(-4px);
+  box-shadow: 6px 6px 0 rgba(212, 255, 63, 0.18);
+}
+
+/* ---------- 캐러셀(부스 미리보기 가로 스크롤) ---------- */
+.landing-carousel {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.landing-booth-grid-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.landing-booth-grid-scroll .landing-booth-card {
+  flex: 0 0 260px;
+  scroll-snap-align: start;
+}
+
+.landing-carousel-arrow {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--wire);
+  background: var(--deck);
+  color: var(--bone);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.landing-carousel-arrow:hover:not(:disabled) {
+  border-color: var(--acid);
+  color: var(--acid);
+}
+
+.landing-carousel-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.landing-booth-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+  background: var(--deck);
+}
+
+.landing-booth-fallback {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--deck) 0 18px,
+    var(--deck2) 18px 36px
+  );
+}
+
+.landing-booth-body {
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.landing-booth-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.landing-booth-head strong {
+  font-size: 16px;
+  color: var(--bone);
+}
+
+.landing-booth-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.landing-booth-summary {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--bone);
+  overflow-wrap: anywhere;
+}
+
+.landing-booth-link {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--acid);
+}
+
+/* ---------- 공연 미리보기 (번호가 붙은 행 — 전체 일정 타임라인과 시각적으로 구분한다) ---------- */
+.landing-show-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  border: 2px solid var(--wire);
+  background: var(--deck);
+}
+
+.landing-show-row {
+  display: grid;
+  grid-template-columns: 36px 84px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--wire);
+  transition: background 0.12s;
+}
+
+.landing-show-row:hover {
+  background: var(--deck2);
+}
+
+.landing-show-row:last-child {
+  border-bottom: 0;
+}
+
+.landing-show-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: var(--wire);
+  color: var(--bone);
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+
+.landing-show-time {
+  font-family: var(--font-display);
+  color: var(--acid);
+  font-size: 19px;
+}
+
+.landing-show-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing-show-title {
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--bone);
+  overflow-wrap: anywhere;
+}
+
+.landing-show-team {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.landing-show-genre {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 900;
+  border: 1px solid var(--violet);
+  color: var(--violet);
+}
+
+/* ---------- 축제 전체 일정 (세로 타임라인) ---------- */
+.landing-timeline {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 8px;
+}
+
+.landing-timeline::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 90px;
+  width: 2px;
+  background: var(--wire);
+}
+
+.landing-timeline-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 76px 20px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.landing-timeline-time {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--cyan);
+  text-align: right;
+}
+
+.landing-timeline-dot {
+  justify-self: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--void);
+  border: 2px solid var(--cyan);
+  box-shadow: 0 0 0 4px var(--void);
+}
+
+.landing-timeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing-timeline-title {
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--bone);
+  overflow-wrap: anywhere;
+}
+
+.landing-timeline-note {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+/* ---------- 이용 안내 ---------- */
+.landing-info-venue {
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  background: var(--deck2);
+  border: 2px solid var(--wire);
+}
+
+.landing-info-venue-name {
+  margin: 0 0 4px;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.landing-info-venue-address {
+  margin: 0 0 10px;
+  color: var(--dim);
+  font-size: 14px;
+}
+
+.landing-info-directions {
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.landing-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 0 0 28px;
+}
+
+.landing-info-row {
+  border-left: 3px solid var(--acid);
+  padding: 4px 0 4px 12px;
+}
+
+.landing-info-row dt {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+
+.landing-info-row dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--bone);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.landing-faq {
+  margin-top: 32px;
+}
+
+.landing-faq-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  margin: 0 0 14px;
+}
+
+.landing-faq-item {
+  border-bottom: 1px solid var(--wire);
+  padding: 14px 0;
+}
+
+.landing-faq-item summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  color: var(--bone);
+  list-style: none;
+}
+
+.landing-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.landing-faq-icon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--acid);
+}
+
+.landing-faq-icon::before,
+.landing-faq-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: var(--acid);
+  transform: translate(-50%, -50%);
+}
+
+.landing-faq-icon::before {
+  width: 8px;
+  height: 2px;
+}
+
+.landing-faq-icon::after {
+  width: 2px;
+  height: 8px;
+  transition: transform 0.15s ease;
+}
+
+.landing-faq-item[open] .landing-faq-icon::after {
+  transform: translate(-50%, -50%) scaleY(0);
+}
+
+.landing-faq-item p {
+  margin: 12px 0 0 30px;
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ---------- 공지 ---------- */
+.landing-announcement-list {
+  border: 2px solid var(--wire);
+  margin-bottom: 18px;
+}
+
+.landing-announcement-item {
+  border-bottom: 1px solid var(--wire);
+  padding: 14px 16px;
+  transition: background 0.12s;
+}
+
+.landing-announcement-item:hover {
+  background: var(--deck2);
+}
+
+.landing-announcement-item:last-child {
+  border-bottom: 0;
+}
+
+.landing-announcement-item summary {
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 800;
+  color: var(--bone);
+  list-style: none;
+}
+
+.landing-announcement-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.landing-announcement-title {
+  display: inline-flex;
+  align-items: center;
+}
+
+.landing-announcement-title .led {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.landing-announcement-date {
+  font-size: 12px;
+  color: var(--dim);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.landing-announcement-item p {
+  margin: 10px 0 0;
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ---------- 푸터 ---------- */
+.landing-footer-inner {
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.landing-footer-credits {
+  color: var(--dim);
+}
+
+/* ---------- /play 화면과의 연결 ---------- */
+.play-breadcrumb {
+  padding: 14px 0 0;
+}
+
+.play-breadcrumb a {
+  color: var(--dim);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.play-breadcrumb a:hover {
+  color: var(--acid);
+}
+
+/* ---------- 404 ---------- */
+.not-found {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+}
+
+.not-found h1 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 44px);
+  margin: 0;
+}
+
+.not-found-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* ---------- 모바일 ---------- */
+@media (max-width: 860px) {
+  .landing-nav-toggle {
+    display: flex;
+  }
+
+  .landing-nav-menu {
+    position: absolute;
+    top: 64px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--void);
+    border-bottom: 2px solid var(--wire);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.18s ease;
+  }
+
+  .landing-nav-menu.is-open {
+    max-height: 420px;
+  }
+
+  .landing-nav-link {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--wire);
+  }
+
+  .landing-nav-cta {
+    margin: 14px 20px 20px;
+    height: 48px;
+    justify-content: center;
+  }
+
+  .landing-theme-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-theme-mark {
+    display: none;
+  }
+
+  .landing-section-index {
+    font-size: clamp(48px, 16vw, 72px);
+    top: -22px;
+  }
+}
+
+@media (max-width: 560px) {
+  .landing-hero-actions .btn-lg {
+    width: 100%;
+  }
+
+  .landing-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-carousel-arrow {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .landing-booth-grid-scroll .landing-booth-card {
+    flex-basis: 220px;
+  }
+
+  .landing-show-row {
+    grid-template-columns: 26px 64px minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .landing-show-time {
+    font-size: 15px;
+  }
+
+  .landing-timeline-row {
+    grid-template-columns: 56px 16px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .landing-timeline::before {
+    left: 64px;
+  }
+
+  .landing-timeline-time {
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-nav-menu {
+    transition: none;
+  }
+
+  .landing-hero-slide {
+    transition: none;
+  }
+
+  .landing-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .landing-booth-grid-scroll {
+    scroll-behavior: auto;
+  }
+
+  .landing-booth-card:hover {
+    transform: none;
+  }
+}

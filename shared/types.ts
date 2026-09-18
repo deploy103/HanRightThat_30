@@ -24,6 +24,60 @@ export interface Booth {
   isPublic: boolean;
   /** 보관(soft delete) 처리 시각. null 이면 보관되지 않은 상태 */
   archivedAt: string | null;
+  /** 소개 페이지 부스 미리보기용 한 줄 소개 (최대 300자) */
+  summary?: string;
+  /** 소개 페이지 부스 상세 설명 (최대 3000자) */
+  description?: string;
+  /** 허용된 public/booth-images/ 아래의 정적 이미지 경로. 없으면 빈 문자열/undefined */
+  imagePath?: string;
+  /** imagePath 사용 시 필수인 대체 텍스트 */
+  imageAlt?: string;
+}
+
+/** 소개 페이지 FAQ 한 항목. 배열 순서가 표시 순서다. */
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+/**
+ * 소개 페이지 콘텐츠. HANWOL-INTRO-V1 계약 — 공개/관리자 저장소가 동일하게 따른다.
+ * 날짜(startsAt/endsAt)는 시간대 오프셋을 포함한 ISO 문자열 또는 null(미정)이다.
+ */
+export interface LandingContent {
+  festivalName: string;
+  edition: number;
+  year: number;
+  theme: string;
+  heroTitle: string;
+  heroDescription: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  venueName: string;
+  address: string;
+  directionsUrl: string;
+  themeTitle: string;
+  themeBody: string;
+  audienceInfo: string;
+  admissionInfo: string;
+  paymentInfo: string;
+  operatingHoursInfo: string;
+  contactInfo: string;
+  organizerText: string;
+  creditsText: string;
+  faqItems: FaqItem[];
+}
+
+/**
+ * 초안/게시 분리 상태. revision은 draft 저장 또는 게시가 성공할 때마다 증가하며
+ * 관리자 PUT/POST 요청의 expectedRevision과 비교해 동시 편집 충돌(409)을 검출한다.
+ */
+export interface LandingState {
+  revision: number;
+  draft: LandingContent;
+  published: LandingContent | null;
+  publishedAt: string | null;
 }
 
 export interface Show {
@@ -76,6 +130,7 @@ export interface FestivalData {
   scheduleItems: ScheduleItem[];
   announcements: Announcement[];
   settings: FestivalSettings;
+  landing: LandingState;
 }
 
 export type BoothInput = Omit<Booth, 'id' | 'archivedAt'>;

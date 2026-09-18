@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-label="이미지 없음">
+  <rect width="320" height="200" fill="#14121F"/>
+  <rect x="1" y="1" width="318" height="198" fill="none" stroke="#2E2947" stroke-width="2"/>
+  <polygon points="60,140 72,60 84,140" fill="#D4FF3F"/>
+  <polygon points="96,140 108,90 120,140" fill="#00E5FF"/>
+  <polygon points="132,140 144,40 156,140" fill="#FF1F6D"/>
+  <polygon points="168,140 180,100 192,140" fill="#9D4EDD"/>
+  <polygon points="204,140 216,70 228,140" fill="#D4FF3F"/>
+  <polygon points="240,140 252,110 264,140" fill="#00E5FF"/>
+</svg>
