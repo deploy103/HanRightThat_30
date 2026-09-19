@@ -34,7 +34,8 @@ export function createJsonStore<T>(
       const raw = await readFile(filePath, 'utf8');
       cache = normalize(JSON.parse(raw));
     } catch {
-      cache = createSeed();
+      // 시드도 저장 파일과 똑같이 normalize 를 거치게 해, 첫 실행과 재시작 후의 데이터 모양이 같도록 맞춘다.
+      cache = normalize(createSeed());
       await persist(cache);
     }
     return cache;

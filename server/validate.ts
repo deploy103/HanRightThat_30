@@ -1,8 +1,10 @@
+import { DEFAULT_BOOTH_SIZE, MIN_BOOTH_SIZE } from '../shared/floorPlans.js';
 import type {
   Announcement,
   AnnouncementInput,
   Booth,
   BoothInput,
+  BoothSize,
   FaqItem,
   FestivalData,
   FestivalMeta,
@@ -16,7 +18,7 @@ import type {
   ShowInput,
 } from '../shared/types.js';
 import { isWellFormedBoothImagePath } from './assets.js';
-import { createSeedData, createSeedLandingState } from './seed.js';
+import { createParentBooth, createSeedData, createSeedLandingState, CURRENT_DATA_VERSION, PARENT_BOOTH_ID } from './seed.js';
 
 export class HttpError extends Error {
   constructor(
@@ -104,6 +106,33 @@ function optionalImagePathFormat(value: unknown, label: string): string {
   return value;
 }
 
+/**
+ * 부스 영역 크기(%)를 읽는다. 값이 없으면 기본 크기를 쓴다 (size 필드가 없던 기존 데이터 호환).
+ * 상한을 100으로 잡고, 중심 좌표와 합쳐 배치도 밖으로 못 나가게 하는 일은 clampBoothGeometry 가 맡는다.
+ */
+function parseBoothSize(value: unknown): BoothSize {
+  if (value === undefined || value === null) return { ...DEFAULT_BOOTH_SIZE };
+  const raw = asRecord(value, '부스 크기');
+  const w = requirePercent(raw.w, '부스 너비');
+  const h = requirePercent(raw.h, '부스 높이');
+  return {
+    w: Math.min(100, Math.max(MIN_BOOTH_SIZE.w, w)),
+    h: Math.min(100, Math.max(MIN_BOOTH_SIZE.h, h)),
+  };
+}
+
+/** 부스 영역(중심 + 크기)이 배치도(0~100%) 안에 완전히 들어오도록 중심 좌표를 민다. */
+function clampBoothGeometry(position: { x: number; y: number }, size: BoothSize) {
+  const half = { x: size.w / 2, y: size.h / 2 };
+  return {
+    position: {
+      x: Math.round(Math.min(100 - half.x, Math.max(half.x, position.x)) * 10) / 10,
+      y: Math.round(Math.min(100 - half.y, Math.max(half.y, position.y)) * 10) / 10,
+    },
+    size,
+  };
+}
+
 export function parseBoothInput(body: unknown): BoothInput {
   const raw = asRecord(body, '부스');
   const position = asRecord(raw.position ?? {}, '위치');
@@ -112,16 +141,18 @@ export function parseBoothInput(body: unknown): BoothInput {
   if (imagePath && !imageAlt) {
     throw new HttpError(400, '이미지를 사용하려면 대체 텍스트를 입력해 주세요.');
   }
+  const geometry = clampBoothGeometry(
+    { x: requirePercent(position.x, '위치 X'), y: requirePercent(position.y, '위치 Y') },
+    parseBoothSize(raw.size),
+  );
   return {
     name: requireText(raw.name, '부스명', 40),
     team: requireText(raw.team, '팀/학급명', 40),
     floor: requireFloor(raw.floor),
     amount: requireAmount(raw.amount, '모금액'),
     place: optionalText(raw.place, '위치 설명', 40),
-    position: {
-      x: requirePercent(position.x, '위치 X'),
-      y: requirePercent(position.y, '위치 Y'),
-    },
+    position: geometry.position,
+    size: geometry.size,
     isActive: requireBool(raw.isActive, '운영 상태', true),
     isPublic: requireBool(raw.isPublic, '공개 여부', true),
     summary: optionalText(raw.summary, '부스 소개 요약', 300) ?? '',
@@ -301,17 +332,37 @@ export function parseIdList(body: unknown): string[] {
   return ids as string[];
 }
 
+/**
+ * 저장 파일에 한 번만 적용되는 데이터 마이그레이션.
+ *
+ * 기존 데이터를 지우거나 덮어쓰지 않고 "빠진 것만 채우는" 방향으로만 동작해야 한다.
+ * 모두 멱등이라 여러 번 실행해도 결과가 같다.
+ */
+function applyMigrations(data: FestivalData, storedVersion: number): FestivalData {
+  let next = data;
+
+  // v1: 3층 지능형소프트웨어과 교실 앞 학부모 부스 추가.
+  // 이미 같은 id 가 있으면(보관 처리 포함) 건드리지 않는다 — 운영자가 지운 부스를 되살리지 않기 위함.
+  if (storedVersion < 1 && !next.booths.some((booth) => booth.id === PARENT_BOOTH_ID)) {
+    next = { ...next, booths: [...next.booths, createParentBooth()] };
+  }
+
+  return { ...next, dataVersion: CURRENT_DATA_VERSION };
+}
+
 /** 저장 파일이 오래된 형식이거나 일부 필드가 빠져 있어도 앱이 뜨도록 보정한다. */
 export function normalizeFestivalData(value: unknown): FestivalData {
   const seed = createSeedData();
   const raw = asRecord(value, '저장 데이터');
+  const storedVersion = typeof raw.dataVersion === 'number' && raw.dataVersion >= 0 ? raw.dataVersion : 0;
   const metaRaw = (raw.meta ?? {}) as Partial<FestivalMeta>;
   const booths = Array.isArray(raw.booths) ? raw.booths : [];
   const shows = Array.isArray(raw.shows) ? raw.shows : [];
   const scheduleItems = Array.isArray(raw.scheduleItems) ? raw.scheduleItems : [];
   const announcements = Array.isArray(raw.announcements) ? raw.announcements : [];
 
-  return {
+  const normalized: FestivalData = {
+    dataVersion: storedVersion,
     meta: {
       updated: typeof metaRaw.updated === 'string' ? metaRaw.updated : seed.meta.updated,
       goal: typeof metaRaw.goal === 'number' && metaRaw.goal >= 0 ? metaRaw.goal : 0,
@@ -385,4 +436,6 @@ export function normalizeFestivalData(value: unknown): FestivalData {
       }
     }),
   };
+
+  return applyMigrations(normalized, storedVersion);
 }

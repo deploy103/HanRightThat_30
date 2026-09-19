@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Booth, FloorId } from '../../shared/types';
 import { PanelHeading } from '../components/PanelHeading';
-import { FLOOR_IDS, FLOOR_PLANS } from '../data/floorPlans';
+import { FLOOR_IDS, FLOOR_PLANS } from '../../shared/floorPlans';
 import { formatWon } from '../lib/format';
 import { BoothList } from './BoothList';
 import { FloorPlan } from './FloorPlan';
@@ -71,7 +71,7 @@ export function MapView({ booths, initialBoothId }: Props) {
       <PanelHeading
         title="부스"
         accent="지도"
-        note="핀이나 목록을 누르면 위치를 표시합니다"
+        note="부스 영역이나 목록을 누르면 위치를 표시합니다"
       />
 
       {deepLinkNotFound ? (
@@ -103,7 +103,7 @@ export function MapView({ booths, initialBoothId }: Props) {
                 </>
               ) : (
                 <span className="map-status-meta">
-                  {FLOOR_PLANS[floor].label} 부스 {counts[floor]}개 · 핀을 선택해 보세요
+                  {FLOOR_PLANS[floor].label} 부스 {counts[floor]}개 · 부스를 선택해 보세요
                 </span>
               )}
             </div>

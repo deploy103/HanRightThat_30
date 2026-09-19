@@ -1,7 +1,6 @@
-import { useRef } from 'react';
-import type { Booth, BoothPosition, FloorId } from '../../shared/types';
-import { FLOOR_PLANS } from '../data/floorPlans';
-import { BoothPin } from './BoothPin';
+import { FLOOR_PLANS } from '../../shared/floorPlans';
+import type { Booth, FloorId } from '../../shared/types';
+import { BoothArea } from './BoothArea';
 
 interface Props {
   floor: FloorId;
@@ -9,23 +8,17 @@ interface Props {
   booths: Booth[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  /** 관리 화면에서 지도를 눌러 위치를 지정할 때 사용한다. */
-  onPlace?: (position: BoothPosition) => void;
 }
 
-/** 2층/3층이 같은 구조이므로 층 데이터만 바꿔 재사용하는 공통 배치도. */
-export function FloorPlan({ floor, booths, selectedId, onSelect, onPlace }: Props) {
+/**
+ * 공개 화면의 층 배치도 — 읽기 전용 렌더러.
+ *
+ * 레이아웃(교실/복도/계단)은 shared/floorPlans 하나에서만 오고,
+ * 부스 영역은 Booth.position(중심 %) + Booth.size(크기 %) 로 그린다.
+ * 편집(생성/이동/크기 변경)은 관리자 저장소의 편집기가 담당하며, 여기에는 어떤 mutation 도 없다.
+ */
+export function FloorPlan({ floor, booths, selectedId, onSelect }: Props) {
   const plan = FLOOR_PLANS[floor];
-  const surfaceRef = useRef<HTMLDivElement>(null);
-
-  const handlePlace = (event: React.MouseEvent<HTMLButtonElement>) => {
-    const surface = surfaceRef.current;
-    if (!surface || !onPlace) return;
-    const rect = surface.getBoundingClientRect();
-    const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
-    const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10;
-    onPlace({ x: Math.min(100, Math.max(0, x)), y: Math.min(100, Math.max(0, y)) });
-  };
 
   return (
     <div className="floorplan-wrap">
@@ -34,7 +27,7 @@ export function FloorPlan({ floor, booths, selectedId, onSelect, onPlace }: Prop
         <span>{plan.hint}</span>
       </p>
 
-      <div className="floorplan" ref={surfaceRef}>
+      <div className="floorplan">
         <div className="floorplan-grid" aria-hidden="true" />
 
         {plan.rooms.map((room) => (
@@ -53,7 +46,7 @@ export function FloorPlan({ floor, booths, selectedId, onSelect, onPlace }: Prop
         ))}
 
         {booths.map((booth, index) => (
-          <BoothPin
+          <BoothArea
             key={booth.id}
             booth={booth}
             index={index}
@@ -61,15 +54,6 @@ export function FloorPlan({ floor, booths, selectedId, onSelect, onPlace }: Prop
             onSelect={onSelect}
           />
         ))}
-
-        {onPlace ? (
-          <button
-            type="button"
-            className="floorplan-place"
-            onClick={handlePlace}
-            aria-label={`${plan.label} 배치도를 눌러 부스 위치 지정`}
-          />
-        ) : null}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { useFestival } from '../hooks/useFestival';
 import { isPlainLeftClick, PLAY_TAB_PATH } from '../hooks/useRoute';
 import { formatWon } from '../lib/format';
 import { MapView } from './MapView';
+import { NoticeView } from './NoticeView';
 import { RankingView } from './RankingView';
 import { ScheduleView } from './ScheduleView';
 
@@ -48,7 +49,7 @@ export function FestivalApp({ tab, boothId, navigate }: Props) {
       <FestivalHeader
         eyebrow="제30회"
         heading="한빛제"
-        lede="부스 모금 현황 · 부스 위치 · 공연 순서"
+        lede="부스 모금 현황 · 부스 위치 · 공연 순서 · 공지"
         facts={facts}
       />
       <FestivalTabs active={tab} onChange={(id) => navigate(PLAY_TAB_PATH[id])} />
@@ -78,6 +79,7 @@ export function FestivalApp({ tab, boothId, navigate }: Props) {
                 ) : null}
                 {item.id === 'map' ? <MapView booths={data.booths} initialBoothId={boothId} /> : null}
                 {item.id === 'schedule' ? <ScheduleView shows={data.shows} meta={data.meta} /> : null}
+                {item.id === 'notice' ? <NoticeView announcements={data.announcements} /> : null}
               </section>
             ))
           : null}

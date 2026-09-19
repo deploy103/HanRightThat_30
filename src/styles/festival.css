@@ -628,76 +628,93 @@
   white-space: nowrap;
 }
 
-.booth-pin {
+/* 부스 영역 — position(중심 %) + size(크기 %)로 그려지는 사각형.
+   공개 화면과 관리자 편집기가 같은 좌표계를 쓴다. */
+.booth-area {
   position: absolute;
   z-index: 4;
-  transform: translate(-50%, -50%);
+  /* 영역 자체의 너비를 기준으로 라벨 표시를 결정한다 (아래 @container).
+     화면 폭이 아니라 "이 부스가 실제로 몇 px인가"를 보므로 모바일·작은 부스 모두 자연스럽다. */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 2px;
-}
-
-.booth-pin-marker {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  background: var(--hot);
-  color: var(--void);
-  font-family: var(--font-display);
-  font-size: 13px;
-  border: 3px solid var(--void);
-  box-shadow: 0 0 0 1px var(--hot);
+  gap: 2px;
+  min-width: 0;
+  padding: 2px;
+  appearance: none;
+  background: rgba(255, 31, 109, 0.16);
+  border: 2px solid var(--hot);
+  box-shadow: inset 0 0 0 1px rgba(11, 10, 18, 0.55);
+  color: var(--bone);
+  overflow: hidden;
   transition:
-    transform 0.14s,
     background 0.14s,
+    border-color 0.14s,
     box-shadow 0.14s;
 }
 
-.booth-pin-label {
+.booth-area-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--hot);
+  color: var(--void);
+  font-family: var(--font-display);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.booth-area-name {
+  max-width: 100%;
   font-size: 10px;
   font-weight: 800;
-  color: var(--bone);
-  background: rgba(11, 10, 18, 0.82);
-  padding: 1px 5px;
+  line-height: 1.15;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 1px 2px var(--void);
 }
 
-.booth-pin:hover .booth-pin-marker {
-  transform: scale(1.12);
+.booth-area:hover {
+  background: rgba(255, 31, 109, 0.3);
 }
 
-.booth-pin.is-selected {
+/* 이름을 다 보여 줄 수 없을 만큼 좁으면 번호만 남긴다 — 잘린 글자로 지저분해지지 않게.
+   번호는 옆 "부스 목록"의 번호와 같으므로 어떤 부스인지 확인할 수 있다. */
+@container (max-width: 62px) {
+  .booth-area-name {
+    display: none;
+  }
+}
+
+@container (max-height: 34px) {
+  .booth-area-name {
+    display: none;
+  }
+}
+
+.booth-area.is-ended {
+  border-style: dashed;
+  opacity: 0.72;
+}
+
+.booth-area.is-selected {
   z-index: 5;
-}
-
-.booth-pin.is-selected .booth-pin-marker {
-  background: var(--acid);
+  background: rgba(212, 255, 63, 0.24);
+  border-color: var(--acid);
   box-shadow:
-    0 0 0 1px var(--acid),
-    0 0 18px rgba(212, 255, 63, 0.75);
-  transform: scale(1.25);
+    inset 0 0 0 1px rgba(11, 10, 18, 0.55),
+    0 0 18px rgba(212, 255, 63, 0.6);
 }
 
-.booth-pin.is-selected .booth-pin-label {
-  color: var(--void);
+.booth-area.is-selected .booth-area-index {
   background: var(--acid);
-}
-
-.floorplan-place {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  appearance: none;
-  background: transparent;
-  border: 0;
-  cursor: crosshair;
 }
 
 .map-status {
@@ -728,6 +745,119 @@
   font-family: var(--font-display);
   font-size: 17px;
   color: var(--acid);
+}
+
+/* ---------- 공지 ---------- */
+.notice-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notice-item {
+  background: var(--deck);
+  border: 2px solid var(--wire);
+  border-left: 5px solid var(--wire);
+  transition:
+    border-color 0.14s,
+    background 0.14s;
+}
+
+.notice-item:hover {
+  border-left-color: var(--acid);
+}
+
+.notice-item.is-open {
+  background: var(--deck2);
+  border-left-color: var(--acid);
+}
+
+.notice-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 12px 16px;
+  appearance: none;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  font-family: var(--font-body);
+}
+
+.notice-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.notice-date {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dim);
+  letter-spacing: 0.04em;
+}
+
+.notice-caret {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--deck2);
+  border: 2px solid var(--wire);
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--dim);
+}
+
+.notice-item.is-open .notice-caret {
+  background: var(--acid);
+  border-color: var(--acid);
+  color: var(--void);
+}
+
+.notice-summary:hover .notice-title {
+  color: var(--acid);
+}
+
+.notice-body {
+  padding: 0 16px 16px;
+  border-top: 2px dashed var(--wire);
+  margin: 0 16px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.notice-text {
+  margin-top: 14px;
+  /* 관리자가 입력한 줄바꿈을 그대로 살린다. HTML 은 해석하지 않는다. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.75;
+  color: var(--bone);
+}
+
+.notice-updated {
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dim);
+  letter-spacing: 0.04em;
 }
 
 .booth-list {
@@ -1051,8 +1181,8 @@
     font-size: 15px;
   }
 
-  .booth-pin-label {
-    display: none;
+  .booth-area-name {
+    font-size: 9px;
   }
 
   .table-hint {
@@ -1116,5 +1246,33 @@
   .wave-bar {
     animation: none;
     transform: scaleY(1);
+  }
+}
+
+@media (max-width: 560px) {
+  .notice-summary {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 12px 14px;
+  }
+
+  .notice-title {
+    flex: 1 1 100%;
+    order: 1;
+    font-size: 14px;
+  }
+
+  .notice-date {
+    order: 2;
+  }
+
+  .notice-caret {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .notice-body {
+    margin: 0 14px;
+    padding-bottom: 14px;
   }
 }

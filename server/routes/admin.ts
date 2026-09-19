@@ -1,10 +1,24 @@
 import { randomUUID } from 'node:crypto';
-import { Router, type Response } from 'express';
+import express, { Router, type Response } from 'express';
+import {
+  DEFAULT_BOOTH_SIZE,
+  FLOOR_ASPECT,
+  FLOOR_IDS,
+  FLOOR_PLANS,
+  MIN_BOOTH_SIZE,
+} from '../../shared/floorPlans.js';
 import { rankBooths } from '../../shared/ranking.js';
 import type { Announcement, Booth, LandingState, ScheduleItem, Show } from '../../shared/types.js';
 import { loadAdminData } from '../adminDb.js';
 import { visibleBooths } from '../publicView.js';
-import { boothImageFileExists } from '../assets.js';
+import {
+  boothImageFileExists,
+  boothImageFileName,
+  deleteBoothImage,
+  MAX_UPLOAD_BYTES,
+  saveBoothImage,
+  UPLOAD_ALLOWED_MIME_TYPES,
+} from '../assets.js';
 import { listAuditLogs, recordAuditLog } from '../auditLog.js';
 import {
   createSession,
@@ -14,13 +28,28 @@ import {
   resolveSession,
   SESSION_COOKIE,
   touchLastLogin,
+  upgradeSessionToFull,
   verifyPassword,
 } from '../auth.js';
 import { clearAuthCookies, readCookies, setAuthCookies } from '../cookies.js';
 import { loadData, mutate } from '../db.js';
-import { type AuthedRequest, requireAdminSession, requireCsrf } from '../middleware/adminAuth.js';
-import { checkLoginAllowed, recordLoginFailure, recordLoginSuccess } from '../rateLimit.js';
+import {
+  type AuthedRequest,
+  requireAdminSession,
+  requireCsrf,
+  requirePendingSession,
+} from '../middleware/adminAuth.js';
+import { buildQrDataUrl } from '../qr.js';
+import { checkLoginAllowed, recordLoginFailure, recordLoginSuccess, twoFactorLimiter } from '../rateLimit.js';
 import { asyncRoute } from '../routeUtils.js';
+import {
+  consumeRecoveryCode,
+  countUnusedRecoveryCodes,
+  enableTwoFactor,
+  startTwoFactorSetup,
+  TOTP_ISSUER,
+  verifyTotpForUser,
+} from '../twoFactor.js';
 import {
   HttpError,
   parseAnnouncementInput,
@@ -69,6 +98,23 @@ export const adminRouter = Router();
 // 인증 (아래 라우트들은 세션/CSRF 미들웨어보다 먼저 등록해 예외로 둔다)
 // ---------------------------------------------------------------------------
 
+function readCode(body: unknown, field: string, label: string): string {
+  const raw = (body ?? {}) as Record<string, unknown>;
+  const value = raw[field];
+  if (typeof value !== 'string' || value.trim() === '') throw new HttpError(400, `${label}을(를) 입력해 주세요.`);
+  // 길이 상한은 서버에서도 건다 — 아무리 긴 문자열을 보내도 해시 계산으로 끌고 가지 않는다.
+  if (value.length > 64) throw new HttpError(400, `${label} 형식이 올바르지 않습니다.`);
+  return value.trim();
+}
+
+/** 실패 응답은 "코드가 틀렸다"까지만 알려 준다 — 어떤 단계에서 틀렸는지는 흘리지 않는다. */
+function guardTwoFactorAttempts(ip: string, username: string): void {
+  const gate = twoFactorLimiter.check(`${ip}:${username}`);
+  if (!gate.allowed) {
+    throw new HttpError(429, `인증 시도가 너무 많습니다. ${gate.retryAfterSec}초 후 다시 시도해 주세요.`);
+  }
+}
+
 adminRouter.post(
   '/auth/login',
   asyncRoute(async (req, res) => {
@@ -94,11 +140,23 @@ adminRouter.post(
     }
 
     recordLoginSuccess(key);
-    await touchLastLogin(username);
-    const session = await createSession(username, ip, req.header('user-agent') ?? '');
+    // 비밀번호만 통과한 상태 — 여기서 정식 관리자 세션을 주면 2FA 가 무의미해진다.
+    const session = await createSession(username, ip, req.header('user-agent') ?? '', 'PASSWORD_VERIFIED');
     setAuthCookies(res, session);
-    await recordAuditLog({ admin: username, action: 'login_success', targetType: 'session', targetId: username, ip });
-    res.json({ username });
+    await recordAuditLog({
+      admin: username,
+      action: 'password_verified',
+      targetType: 'session',
+      targetId: username,
+      ip,
+    });
+    res.json({
+      username,
+      stage: session.stage,
+      twoFactorEnabled: user.twoFactorEnabled === true,
+      // 아직 2FA 를 등록하지 않았다면 등록 화면으로 보내야 한다는 뜻이다.
+      next: user.twoFactorEnabled === true ? 'verify' : 'setup',
+    });
   }),
 );
 
@@ -106,27 +164,181 @@ adminRouter.get(
   '/auth/session',
   asyncRoute(async (req, res) => {
     const cookies = readCookies(req);
-    const username = await resolveSession(cookies[SESSION_COOKIE]);
-    res.json({ username });
+    const session = await resolveSession(cookies[SESSION_COOKIE]);
+    if (!session) {
+      res.json({ username: null, stage: null, twoFactorEnabled: false, next: null });
+      return;
+    }
+    const user = await findAdminUser(session.username);
+    res.json({
+      username: session.username,
+      stage: session.stage,
+      twoFactorEnabled: user?.twoFactorEnabled === true,
+      next:
+        session.stage === 'TWO_FACTOR_VERIFIED' ? null : user?.twoFactorEnabled === true ? 'verify' : 'setup',
+    });
+  }),
+);
+
+/** 로그아웃은 임시(2FA 전) 세션에서도 가능해야 한다 — 인증을 중간에 취소하는 경로다. */
+adminRouter.post(
+  '/auth/logout',
+  requireCsrf,
+  asyncRoute(async (req, res) => {
+    const cookies = readCookies(req);
+    const session = await resolveSession(cookies[SESSION_COOKIE]);
+    await destroySession(cookies[SESSION_COOKIE]);
+    clearAuthCookies(res);
+    if (session) {
+      await recordAuditLog({
+        admin: session.username,
+        action: 'logout',
+        targetType: 'session',
+        targetId: session.username,
+        ip: clientIp(req),
+      });
+    }
+    res.status(204).end();
+  }),
+);
+
+// --- 2단계 인증 (TOTP) ---
+// setup/enable/verify 는 "비밀번호만 통과한" 임시 세션에서만 호출할 수 있다.
+
+adminRouter.post(
+  '/auth/2fa/setup',
+  requirePendingSession,
+  requireCsrf,
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const username = req.adminUsername ?? '';
+    const user = await findAdminUser(username);
+    if (!user) throw new HttpError(401, '로그인이 필요합니다.');
+    if (user.twoFactorEnabled) {
+      // 이미 등록된 계정의 secret 을 다시 내주면 안 된다. 재등록은 CLI 초기화를 거쳐야 한다.
+      throw new HttpError(409, '이미 2단계 인증이 설정되어 있습니다.');
+    }
+
+    const setup = await startTwoFactorSetup(username);
+    await recordAuditLog({
+      admin: username,
+      action: 'two_factor_setup_started',
+      targetType: 'admin',
+      targetId: username,
+      ip: clientIp(req),
+    });
+    // secret 과 QR 은 이 응답에서만 나간다 (등록이 끝나면 다시는 조회할 수 없다).
+    res.json({ secret: setup.secret, otpauthUrl: setup.otpauthUrl, qrDataUrl: buildQrDataUrl(setup.otpauthUrl), issuer: TOTP_ISSUER });
   }),
 );
 
 adminRouter.post(
-  '/auth/logout',
-  requireAdminSession,
+  '/auth/2fa/enable',
+  requirePendingSession,
   requireCsrf,
-  asyncRoute(async (req: AuthedRequest, res) => {
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const username = req.adminUsername ?? '';
+    const ip = clientIp(req);
+    guardTwoFactorAttempts(ip, username);
+
+    const code = readCode(req.body, 'code', '인증번호');
+    const user = await findAdminUser(username);
+    if (!user) throw new HttpError(401, '로그인이 필요합니다.');
+
+    const result = await enableTwoFactor(user, code);
+    if (!result.ok) {
+      twoFactorLimiter.fail(`${ip}:${username}`);
+      await recordAuditLog({
+        admin: username,
+        action: 'two_factor_enable_failed',
+        targetType: 'admin',
+        targetId: username,
+        ip,
+      });
+      if (result.reason === 'no-pending') {
+        throw new HttpError(400, 'QR 코드를 먼저 발급받아 주세요.');
+      }
+      throw new HttpError(401, '인증번호가 올바르지 않습니다. 앱에 표시된 최신 코드를 입력해 주세요.');
+    }
+
+    twoFactorLimiter.succeed(`${ip}:${username}`);
+    await touchLastLogin(username);
     const cookies = readCookies(req);
-    await destroySession(cookies[SESSION_COOKIE]);
-    clearAuthCookies(res);
+    const session = await upgradeSessionToFull(cookies[SESSION_COOKIE], username, ip, req.header('user-agent') ?? '');
+    setAuthCookies(res, session);
     await recordAuditLog({
-      admin: req.adminUsername ?? 'unknown',
-      action: 'logout',
-      targetType: 'session',
-      targetId: req.adminUsername ?? 'unknown',
-      ip: clientIp(req),
+      admin: username,
+      action: 'two_factor_enabled',
+      targetType: 'admin',
+      targetId: username,
+      ip,
     });
-    res.status(204).end();
+    await recordAuditLog({ admin: username, action: 'login_success', targetType: 'session', targetId: username, ip });
+    // 복구 코드 원문은 이 응답이 유일한 노출 지점이다.
+    res.json({ username, stage: session.stage, recoveryCodes: result.recoveryCodes ?? [] });
+  }),
+);
+
+adminRouter.post(
+  '/auth/2fa/verify',
+  requirePendingSession,
+  requireCsrf,
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const username = req.adminUsername ?? '';
+    const ip = clientIp(req);
+    guardTwoFactorAttempts(ip, username);
+
+    const body = (req.body ?? {}) as { code?: unknown; recoveryCode?: unknown };
+    const usingRecovery = typeof body.recoveryCode === 'string' && body.recoveryCode.trim() !== '';
+    const value = usingRecovery ? readCode(body, 'recoveryCode', '복구 코드') : readCode(body, 'code', '인증번호');
+
+    const user = await findAdminUser(username);
+    if (!user) throw new HttpError(401, '로그인이 필요합니다.');
+    if (!user.twoFactorEnabled) throw new HttpError(400, '2단계 인증이 아직 설정되지 않았습니다.');
+
+    const ok = usingRecovery ? await consumeRecoveryCode(user, value) : await verifyTotpForUser(user, value);
+    if (!ok) {
+      twoFactorLimiter.fail(`${ip}:${username}`);
+      await recordAuditLog({
+        admin: username,
+        action: usingRecovery ? 'recovery_code_failed' : 'two_factor_failed',
+        targetType: 'session',
+        targetId: username,
+        ip,
+      });
+      throw new HttpError(
+        401,
+        usingRecovery ? '복구 코드가 올바르지 않거나 이미 사용되었습니다.' : '인증번호가 올바르지 않습니다.',
+      );
+    }
+
+    twoFactorLimiter.succeed(`${ip}:${username}`);
+    await touchLastLogin(username);
+    const cookies = readCookies(req);
+    const session = await upgradeSessionToFull(cookies[SESSION_COOKIE], username, ip, req.header('user-agent') ?? '');
+    setAuthCookies(res, session);
+    if (usingRecovery) {
+      await recordAuditLog({
+        admin: username,
+        action: 'recovery_code_used',
+        targetType: 'admin',
+        targetId: username,
+        after: { remaining: await countUnusedRecoveryCodes(user.id) },
+        ip,
+      });
+    }
+    await recordAuditLog({
+      admin: username,
+      action: usingRecovery ? 'login_success' : 'two_factor_success',
+      targetType: 'session',
+      targetId: username,
+      ip,
+    });
+    res.json({
+      username,
+      stage: session.stage,
+      usedRecoveryCode: usingRecovery,
+      remainingRecoveryCodes: await countUnusedRecoveryCodes(user.id),
+    });
   }),
 );
 
@@ -228,6 +440,73 @@ adminRouter.post(
     });
     await audit(req, 'booth_restore', 'booth', id, before, booth);
     res.json(booth);
+  }),
+);
+
+// --- 층 배치도 (GUI 편집기용) ---
+//
+// 공개 화면 렌더러(src/festival/FloorPlan.tsx)와 **같은 shared/floorPlans.ts** 를 그대로 내려준다.
+// 관리자 저장소는 소스를 공유하지 않으므로, 레이아웃을 그쪽에 복제하지 않고 이 엔드포인트로만 받아 간다 —
+// 덕분에 계단 제거 같은 변경이 한쪽에만 반영되어 좌표가 어긋나는 일이 없다.
+adminRouter.get(
+  '/floor-plans',
+  asyncRoute(async (_req, res) => {
+    res.json({
+      aspect: FLOOR_ASPECT,
+      defaultBoothSize: DEFAULT_BOOTH_SIZE,
+      minBoothSize: MIN_BOOTH_SIZE,
+      floors: FLOOR_IDS.map((id) => FLOOR_PLANS[id]),
+    });
+  }),
+);
+
+// --- 부스 대표 이미지 업로드 ---
+//
+// multipart 파서를 새로 들이지 않고, 파일 바이트를 그대로 본문으로 받는다.
+// (업로드 필드가 파일 하나뿐이라 multipart 가 줄 이점이 없고, 파싱 표면적도 줄어든다.)
+// 파일명은 서버가 만들고, 형식은 Content-Type 이 아니라 실제 매직 넘버로 판정한다.
+
+const rawImageBody = express.raw({ type: UPLOAD_ALLOWED_MIME_TYPES, limit: MAX_UPLOAD_BYTES });
+
+adminRouter.post(
+  '/booth-images',
+  rawImageBody,
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const contentType = req.header('content-type') ?? '';
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw new HttpError(400, `이미지 파일을 본문으로 보내 주세요. (${UPLOAD_ALLOWED_MIME_TYPES.join(', ')})`);
+    }
+    let saved;
+    try {
+      saved = await saveBoothImage(req.body, contentType);
+    } catch (cause) {
+      throw new HttpError(400, cause instanceof Error ? cause.message : '이미지를 저장하지 못했습니다.');
+    }
+    await audit(req, 'booth_image_upload', 'booth-image', saved.imagePath, null, {
+      bytes: saved.bytes,
+      mimeType: saved.mimeType,
+    });
+    res.status(201).json(saved);
+  }),
+);
+
+adminRouter.delete(
+  '/booth-images/:name',
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const imagePath = `/booth-images/${req.params.name}`;
+    // 형식 검사를 통과한 이름만 파일 경로로 만든다 (경로 탈출 차단).
+    if (!boothImageFileName(imagePath)) throw new HttpError(400, '이미지 파일명이 올바르지 않습니다.');
+
+    // 아직 어떤 부스가 쓰고 있다면 지우지 않는다 (다른 사람의 부스 이미지를 지우는 IDOR 방지).
+    const data = await loadData();
+    const inUse = data.booths.filter((booth) => booth.imagePath === imagePath);
+    if (inUse.length > 0) {
+      throw new HttpError(409, '이 이미지를 사용 중인 부스가 있습니다. 먼저 부스에서 이미지를 해제해 주세요.');
+    }
+
+    const removed = await deleteBoothImage(imagePath);
+    await audit(req, 'booth_image_delete', 'booth-image', imagePath, { removed }, null);
+    res.status(204).end();
   }),
 );
 
@@ -550,6 +829,20 @@ adminRouter.get(
 );
 
 // --- 관리자 계정 (조회만, 생성은 CLI 전용) ---
+
+adminRouter.get(
+  '/2fa/status',
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const user = await findAdminUser(req.adminUsername ?? '');
+    if (!user) throw new HttpError(401, '로그인이 필요합니다.');
+    // secret 은 어떤 형태로도 돌려주지 않는다 — 상태값만 노출한다.
+    res.json({
+      enabled: user.twoFactorEnabled === true,
+      enabledAt: user.twoFactorEnabledAt ?? null,
+      remainingRecoveryCodes: await countUnusedRecoveryCodes(user.id),
+    });
+  }),
+);
 
 adminRouter.get(
   '/me',

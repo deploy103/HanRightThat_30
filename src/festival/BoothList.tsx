@@ -1,5 +1,5 @@
 import type { Booth, FloorId } from '../../shared/types';
-import { FLOOR_IDS, FLOOR_PLANS } from '../data/floorPlans';
+import { FLOOR_IDS, FLOOR_PLANS } from '../../shared/floorPlans';
 import { formatWon } from '../lib/format';
 
 interface Props {
