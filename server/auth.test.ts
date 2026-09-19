@@ -36,15 +36,39 @@ describe('비밀번호 해시', () => {
 
 describe('세션', () => {
   it('발급한 세션은 검증에 성공하고, 로그아웃 후에는 실패한다', async () => {
-    const session = await auth.createSession('admin', '127.0.0.1', 'vitest');
-    expect(await auth.resolveSession(session.cookieValue)).toBe('admin');
+    const session = await auth.createSession('admin', '127.0.0.1', 'vitest', 'TWO_FACTOR_VERIFIED');
+    expect(await auth.resolveSession(session.cookieValue)).toEqual({
+      username: 'admin',
+      stage: 'TWO_FACTOR_VERIFIED',
+    });
 
     await auth.destroySession(session.cookieValue);
     expect(await auth.resolveSession(session.cookieValue)).toBeNull();
   });
 
+  it('비밀번호만 통과한 세션은 PASSWORD_VERIFIED 단계로 구분된다', async () => {
+    const session = await auth.createSession('admin', '127.0.0.1', 'vitest', 'PASSWORD_VERIFIED');
+    expect(await auth.resolveSession(session.cookieValue)).toEqual({
+      username: 'admin',
+      stage: 'PASSWORD_VERIFIED',
+    });
+  });
+
+  it('2FA 통과 시 세션 토큰이 새로 발급되고(고정 공격 방지) 이전 토큰은 무효가 된다', async () => {
+    const pending = await auth.createSession('admin', '127.0.0.1', 'vitest', 'PASSWORD_VERIFIED');
+    const upgraded = await auth.upgradeSessionToFull(pending.cookieValue, 'admin', '127.0.0.1', 'vitest');
+
+    expect(upgraded.cookieValue).not.toBe(pending.cookieValue);
+    expect(upgraded.csrfValue).not.toBe(pending.csrfValue);
+    expect(await auth.resolveSession(pending.cookieValue)).toBeNull();
+    expect(await auth.resolveSession(upgraded.cookieValue)).toEqual({
+      username: 'admin',
+      stage: 'TWO_FACTOR_VERIFIED',
+    });
+  });
+
   it('서명이 조작된 쿠키 값은 거부한다', async () => {
-    const session = await auth.createSession('admin', '127.0.0.1', 'vitest');
+    const session = await auth.createSession('admin', '127.0.0.1', 'vitest', 'TWO_FACTOR_VERIFIED');
     const [token] = session.cookieValue.split('.');
     const tampered = `${token}.0000000000000000000000000000000000000000000000000000000000000000`;
     expect(await auth.resolveSession(tampered)).toBeNull();

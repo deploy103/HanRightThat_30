@@ -3,6 +3,7 @@ dist
 dist-server
 data/festival.json
 data/admin.json
+data/uploads/
 .env
 *.local
 .DS_Store

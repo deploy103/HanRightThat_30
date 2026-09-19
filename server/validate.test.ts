@@ -25,6 +25,7 @@ describe('parseBoothInput', () => {
       amount: 184000,
       place: undefined,
       position: { x: 61.5, y: 21 },
+      size: { w: 14, h: 10 },
       isActive: true,
       isPublic: true,
       summary: '',
@@ -94,7 +95,7 @@ describe('parseBoothInput', () => {
     ).toThrow(HttpError);
   });
 
-  it('위치는 0~100 범위로 잘라낸다', () => {
+  it('부스 영역이 배치도 밖으로 나가지 않도록 중심 좌표를 안쪽으로 민다', () => {
     const input = parseBoothInput({
       name: 'a',
       team: 'b',
@@ -102,7 +103,19 @@ describe('parseBoothInput', () => {
       amount: 0,
       position: { x: -30, y: 180 },
     });
-    expect(input.position).toEqual({ x: 0, y: 100 });
+    // 기본 크기 14x10 의 절반만큼 안쪽(7, 95)까지만 갈 수 있다.
+    expect(input.position).toEqual({ x: 7, y: 95 });
+  });
+
+  it('크기를 지정하면 최소 크기 이상으로 저장하고, 너무 작은 값은 올려 준다', () => {
+    const base = { name: 'a', team: 'b', floor: 2, amount: 0, position: { x: 50, y: 50 } };
+    expect(parseBoothInput({ ...base, size: { w: 22, h: 16 } }).size).toEqual({ w: 22, h: 16 });
+    expect(parseBoothInput({ ...base, size: { w: 1, h: 0 } }).size).toEqual({ w: 4, h: 4 });
+  });
+
+  it('size 가 없는 기존 데이터는 기본 크기로 채운다', () => {
+    const input = parseBoothInput({ name: 'a', team: 'b', floor: 2, amount: 0, position: { x: 50, y: 50 } });
+    expect(input.size).toEqual({ w: 14, h: 10 });
   });
 });
 
@@ -199,7 +212,8 @@ describe('normalizeFestivalData', () => {
         { id: 's1', order: 3, time: '13:00', team: 'c', title: 'd' },
       ],
     });
-    expect(data.booths).toHaveLength(1);
+    // 깨진 부스 1개는 버려지고, 마이그레이션이 더하는 학부모 부스가 함께 들어온다.
+    expect(data.booths.map((booth) => booth.id)).toEqual(['x', 'booth-parents']);
     expect(data.shows.map((show) => [show.id, show.order])).toEqual([
       ['s1', 1],
       ['s2', 2],

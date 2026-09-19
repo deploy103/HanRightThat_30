@@ -29,3 +29,17 @@ export function formatFestivalPeriod(startsAt: string | null, endsAt: string | n
   if (sameDay) return `${startText} ~ ${timeFormatter.format(end)}`;
   return `${startText} ~ ${dateFormatter.format(end)} ${timeFormatter.format(end)}`;
 }
+
+const noticeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+/** 공지 작성/수정 시각(ISO)을 "2026년 9월 19일" 형태로 만든다. */
+export function formatNoticeDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return noticeFormatter.format(date);
+}

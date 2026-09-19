@@ -14,6 +14,9 @@ services:
       ADMIN_DB: /app/data/admin.json
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET 환경변수를 설정해 주세요}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-8}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?TOTP_ENCRYPTION_KEY 환경변수를 설정해 주세요 (openssl rand -hex 32)}
+      TOTP_ISSUER: ${TOTP_ISSUER:-Hanbit Festival Admin}
+      BOOTH_IMAGE_DIR: /app/data/uploads/booth-images
       ADMIN_ORIGIN: ${ADMIN_ORIGIN:-https://admin.hanwol.site}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.hanwol.site}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}

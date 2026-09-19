@@ -1,5 +1,5 @@
 import type { FloorId } from '../../shared/types';
-import { FLOOR_IDS, FLOOR_PLANS } from '../data/floorPlans';
+import { FLOOR_IDS, FLOOR_PLANS } from '../../shared/floorPlans';
 
 interface Props {
   active: FloorId;

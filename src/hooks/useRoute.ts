@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type PlayTab = 'map' | 'ranking' | 'schedule';
+export type PlayTab = 'map' | 'ranking' | 'schedule' | 'notice';
 
 export type Route =
   | { name: 'landing' }
@@ -26,6 +26,7 @@ export function parseRoute(pathname: string, search: string): Route {
   }
   if (path === '/play/ranking') return { name: 'play', tab: 'ranking' };
   if (path === '/play/schedule') return { name: 'play', tab: 'schedule' };
+  if (path === '/play/notice') return { name: 'play', tab: 'notice' };
   return { name: 'not-found' };
 }
 
@@ -63,4 +64,5 @@ export const PLAY_TAB_PATH: Record<PlayTab, string> = {
   map: '/play/map',
   ranking: '/play/ranking',
   schedule: '/play/schedule',
+  notice: '/play/notice',
 };

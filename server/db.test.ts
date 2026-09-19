@@ -21,11 +21,13 @@ afterAll(async () => {
 });
 
 describe('영속 저장', () => {
-  it('최초 실행 시 기본 부스 8개로 시드한다', async () => {
+  it('최초 실행 시 기본 부스 9개(2층 4 + 3층 5)로 시드한다', async () => {
     const data = await db.loadData();
-    expect(data.booths).toHaveLength(8);
+    expect(data.booths).toHaveLength(9);
     expect(data.booths.filter((booth) => booth.floor === 2)).toHaveLength(4);
-    expect(data.booths.filter((booth) => booth.floor === 3)).toHaveLength(4);
+    // 3층은 기본 4개 + 학부모 부스.
+    expect(data.booths.filter((booth) => booth.floor === 3)).toHaveLength(5);
+    expect(data.booths.some((booth) => booth.name === '학부모 부스')).toBe(true);
   });
 
   it('변경 내용이 파일에 저장되어 재시작 후에도 유지된다', async () => {
@@ -55,7 +57,7 @@ describe('영속 저장', () => {
     const reloaded = await db.loadData();
     const saved = reloaded.booths.find((booth) => booth.id === 'booth-test');
     expect(saved?.amount).toBe(12345);
-    expect(reloaded.booths).toHaveLength(9);
+    expect(reloaded.booths).toHaveLength(10);
   });
 });
 

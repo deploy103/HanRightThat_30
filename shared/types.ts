@@ -3,10 +3,16 @@
 export type FloorId = 2 | 3;
 
 export interface BoothPosition {
-  /** 층 배치도 기준 가로 위치 (0~100%) */
+  /** 층 배치도 기준 가로 위치 (0~100%). 부스 영역의 "중심" 이다. */
   x: number;
-  /** 층 배치도 기준 세로 위치 (0~100%) */
+  /** 층 배치도 기준 세로 위치 (0~100%). 부스 영역의 "중심" 이다. */
   y: number;
+}
+
+/** 부스 영역 크기. 픽셀이 아니라 배치도 대비 비율(0~100%)이라 화면 크기가 달라져도 위치가 맞는다. */
+export interface BoothSize {
+  w: number;
+  h: number;
 }
 
 export interface Booth {
@@ -18,6 +24,8 @@ export interface Booth {
   /** 배치도에서 읽기 쉬우라고 붙이는 보조 위치 라벨 (예: "2층 복도 동편") */
   place?: string;
   position: BoothPosition;
+  /** 배치도에서 차지하는 영역 크기(%). 없으면 DEFAULT_BOOTH_SIZE 로 그린다. */
+  size?: BoothSize;
   /** 운영 중 여부 (false 면 "운영 종료" 상태로 취급하되 여전히 노출될 수 있다) */
   isActive: boolean;
   /** 공개 화면 노출 여부 */
@@ -124,6 +132,8 @@ export interface FestivalSettings {
 }
 
 export interface FestivalData {
+  /** 저장 데이터 마이그레이션 버전. normalizeFestivalData 가 올려 준다. */
+  dataVersion?: number;
   meta: FestivalMeta;
   booths: Booth[];
   shows: Show[];

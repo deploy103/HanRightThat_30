@@ -8,7 +8,7 @@ import {
 } from 'node:crypto';
 import { promisify } from 'node:util';
 import { loadAdminData, mutateAdminData } from './adminDb.js';
-import type { AdminUser, SessionRecord } from './adminTypes.js';
+import type { AdminUser, SessionRecord, SessionStage } from './adminTypes.js';
 
 const scrypt = promisify(scryptCallback);
 
@@ -28,6 +28,12 @@ if (isProduction && rawSecret.length < 32) {
 
 const SESSION_SECRET = rawSecret || 'dev-only-insecure-secret-change-me';
 const SESSION_TTL_MS = Number(process.env.SESSION_TTL_HOURS ?? 8) * 60 * 60 * 1000;
+
+/**
+ * 비밀번호만 통과한 임시 세션의 수명. 2FA 화면을 넘기기에는 넉넉하고,
+ * 훔쳐도 오래 쓸 수 없을 만큼은 짧게 잡는다.
+ */
+const PENDING_SESSION_TTL_MS = 5 * 60 * 1000;
 
 export const SESSION_COOKIE = 'hanbit_admin_session';
 export const CSRF_COOKIE = 'hanbit_admin_csrf';
@@ -71,16 +77,34 @@ export interface CreatedSession {
   cookieValue: string;
   csrfValue: string;
   expiresAt: string;
+  stage: SessionStage;
 }
 
-/** 로그인 성공 시 세션을 발급한다. 쿠키 값은 `token.서명` 형태로, 서버는 저장하지 않고 매번 서명을 검증한다. */
-export async function createSession(username: string, ip: string, userAgent: string): Promise<CreatedSession> {
+export interface ResolvedSession {
+  username: string;
+  stage: SessionStage;
+}
+
+/**
+ * 세션을 발급한다. 쿠키 값은 `token.서명` 형태로, 서버는 원본 토큰을 저장하지 않고 매번 서명을 검증한다.
+ *
+ * stage 로 "비밀번호만 통과" 와 "2FA까지 통과" 를 명확히 구분한다 —
+ * 비밀번호 단계에서 발급된 쿠키로는 어떤 관리자 API 도 호출할 수 없다.
+ */
+export async function createSession(
+  username: string,
+  ip: string,
+  userAgent: string,
+  stage: SessionStage,
+): Promise<CreatedSession> {
   const token = randomBytes(32).toString('hex');
   const signature = sign(token);
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  const ttl = stage === 'TWO_FACTOR_VERIFIED' ? SESSION_TTL_MS : PENDING_SESSION_TTL_MS;
+  const expiresAt = new Date(Date.now() + ttl).toISOString();
   const record: SessionRecord = {
     tokenHash: hashToken(token),
     adminUsername: username,
+    stage,
     createdAt: new Date().toISOString(),
     expiresAt,
     ip,
@@ -94,11 +118,25 @@ export async function createSession(username: string, ip: string, userAgent: str
     return [{ ...current, sessions: [...sessions, record] }, undefined];
   });
 
-  return { cookieValue: `${token}.${signature}`, csrfValue: randomBytes(16).toString('hex'), expiresAt };
+  return { cookieValue: `${token}.${signature}`, csrfValue: randomBytes(16).toString('hex'), expiresAt, stage };
 }
 
-/** 쿠키 값을 검증하고 유효하면 관리자 아이디를 반환한다. */
-export async function resolveSession(cookieValue: string | undefined): Promise<string | null> {
+/**
+ * 2FA 통과 시 임시 세션을 버리고 새 토큰/새 CSRF 값을 발급한다.
+ * 토큰이 바뀌므로 로그인 전에 심어 둔 쿠키를 그대로 승격시키는 session fixation 이 불가능하다.
+ */
+export async function upgradeSessionToFull(
+  pendingCookieValue: string | undefined,
+  username: string,
+  ip: string,
+  userAgent: string,
+): Promise<CreatedSession> {
+  await destroySession(pendingCookieValue);
+  return createSession(username, ip, userAgent, 'TWO_FACTOR_VERIFIED');
+}
+
+/** 쿠키 값을 검증하고 유효하면 관리자 아이디와 인증 단계를 반환한다. */
+export async function resolveSession(cookieValue: string | undefined): Promise<ResolvedSession | null> {
   if (!cookieValue) return null;
   const [token, signature] = cookieValue.split('.');
   if (!token || !signature) return null;
@@ -115,7 +153,7 @@ export async function resolveSession(cookieValue: string | undefined): Promise<s
   const record = data.sessions.find((session) => session.tokenHash === tokenHash);
   if (!record) return null;
   if (new Date(record.expiresAt).getTime() <= Date.now()) return null;
-  return record.adminUsername;
+  return { username: record.adminUsername, stage: record.stage };
 }
 
 export async function destroySession(cookieValue: string | undefined): Promise<void> {
@@ -163,6 +201,12 @@ export async function createAdminUser(username: string, password: string): Promi
     passwordHash,
     createdAt: new Date().toISOString(),
     lastLoginAt: null,
+    // 새 계정도 첫 로그인 때 2FA 등록 화면을 거친다.
+    twoFactorEnabled: false,
+    twoFactorSecretEncrypted: null,
+    pendingTwoFactorSecretEncrypted: null,
+    twoFactorEnabledAt: null,
+    lastTotpStep: null,
   };
   await mutateAdminData((current) => {
     if (current.adminUsers.some((existing) => existing.username === username)) {

@@ -25,6 +25,9 @@ server {
     ssl_certificate     /etc/letsencrypt/live/hanwol.site/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/hanwol.site/privkey.pem;
 
+    # 부스 대표 이미지 업로드는 최대 4MB 다. nginx 기본값(1MB)이면 413 이 나므로 여유를 둔다.
+    client_max_body_size 5m;
+
     location / {
         proxy_pass http://WEB_VM_PRIVATE_IP:8787;
         proxy_http_version 1.1;

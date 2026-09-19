@@ -13,6 +13,7 @@ export const TABS: TabDef[] = [
   { id: 'ranking', title: '순위', sub: '부스 모금' },
   { id: 'map', title: '지도', sub: '부스 위치' },
   { id: 'schedule', title: '공연', sub: '무대 순서' },
+  { id: 'notice', title: '공지', sub: '안내 사항' },
 ];
 
 interface Props {

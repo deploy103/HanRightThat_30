@@ -1,4 +1,34 @@
-import type { FestivalData, LandingContent, LandingState } from '../shared/types.js';
+import type { Booth, FestivalData, LandingContent, LandingState } from '../shared/types.js';
+
+/**
+ * 3층 지능형소프트웨어과 교실 앞(복도)에 놓이는 학부모 부스.
+ *
+ * 시드에도 들어가지만, 이미 data/festival.json 이 있는 기존 배포에서도 한 번은 생겨야 하므로
+ * normalizeFestivalData 의 마이그레이션(dataVersion 1)이 같은 함수를 재사용한다.
+ * id 가 고정이라 여러 번 실행해도 중복 생성되지 않고, 운영자가 보관(archive)한 뒤에도 되살아나지 않는다.
+ */
+export const PARENT_BOOTH_ID = 'booth-parents';
+
+export function createParentBooth(): Booth {
+  return {
+    id: PARENT_BOOTH_ID,
+    name: '학부모 부스',
+    team: '학부모회',
+    floor: 3,
+    amount: 0,
+    place: '3층 지능형소프트웨어과 1-1 앞',
+    // 3층 왼쪽 첫 교실(지능형소프트웨어과) 바로 앞 복도 구간.
+    position: { x: 19.5, y: 76 },
+    size: { w: 16, h: 12 },
+    isActive: true,
+    isPublic: true,
+    archivedAt: null,
+  };
+}
+
+
+/** 저장 데이터 마이그레이션 버전. 새 마이그레이션을 추가할 때마다 1씩 올린다. */
+export const CURRENT_DATA_VERSION = 1;
 
 /**
  * 소개 콘텐츠 초기 시드. published는 항상 null로 시작한다 —
@@ -48,6 +78,7 @@ export function createSeedLandingState(): LandingState {
  */
 export function createSeedData(): FestivalData {
   return {
+    dataVersion: CURRENT_DATA_VERSION,
     meta: {
       updated: '9월 8일 오후 3시 기준',
       goal: 0,
@@ -153,6 +184,7 @@ export function createSeedData(): FestivalData {
         isPublic: true,
         archivedAt: null,
       },
+      createParentBooth(),
     ],
     shows: [
       {

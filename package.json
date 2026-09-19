@@ -16,11 +16,13 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
-    "create-admin": "tsx server/createAdmin.ts"
+    "create-admin": "tsx server/createAdmin.ts",
+    "admin:reset-2fa": "tsx server/resetTwoFactor.ts"
   },
   "dependencies": {
     "cookie": "^0.7.2",
     "express": "^4.21.2",
+    "qrcode-generator": "^2.0.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
