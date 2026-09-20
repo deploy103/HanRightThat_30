@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Booth, FloorId } from '../../shared/types';
+import type { Booth, FloorId, FloorPlanDef } from '../../shared/types';
 import { PanelHeading } from '../components/PanelHeading';
-import { FLOOR_IDS, FLOOR_PLANS } from '../../shared/floorPlans';
+import { FLOOR_IDS, findFloorPlan } from '../../shared/floorPlans';
 import { formatWon } from '../lib/format';
 import { BoothList } from './BoothList';
 import { FloorPlan } from './FloorPlan';
@@ -9,11 +9,13 @@ import { FloorSelector } from './FloorSelector';
 
 interface Props {
   booths: Booth[];
+  /** 관리자가 편집한 층 배치도. 아직 안 왔으면 코드의 기본 배치도로 그린다. */
+  floorPlans?: FloorPlanDef[];
   /** /play/map?booth=<id> 로 들어왔을 때 한 번만 적용할 딥링크 대상. */
   initialBoothId?: string;
 }
 
-export function MapView({ booths, initialBoothId }: Props) {
+export function MapView({ booths, floorPlans, initialBoothId }: Props) {
   const [floor, setFloor] = useState<FloorId>(2);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deepLinkNotFound, setDeepLinkNotFound] = useState(false);
@@ -42,7 +44,7 @@ export function MapView({ booths, initialBoothId }: Props) {
           acc[id] = booths.filter((booth) => booth.floor === id).length;
           return acc;
         },
-        { 2: 0, 3: 0 } as Record<FloorId, number>,
+        Object.fromEntries(FLOOR_IDS.map((id) => [id, 0])) as Record<FloorId, number>,
       ),
     [booths],
   );
@@ -85,9 +87,10 @@ export function MapView({ booths, initialBoothId }: Props) {
       ) : (
         <div className="map-layout">
           <div className="map-panel" ref={mapRef}>
-            <FloorSelector active={floor} onChange={changeFloor} counts={counts} />
+            <FloorSelector active={floor} onChange={changeFloor} plans={floorPlans} counts={counts} />
             <FloorPlan
               floor={floor}
+              plans={floorPlans}
               booths={floorBooths}
               selectedId={selectedId}
               onSelect={setSelectedId}
@@ -103,13 +106,13 @@ export function MapView({ booths, initialBoothId }: Props) {
                 </>
               ) : (
                 <span className="map-status-meta">
-                  {FLOOR_PLANS[floor].label} 부스 {counts[floor]}개 · 부스를 선택해 보세요
+                  {findFloorPlan(floorPlans, floor).label} 부스 {counts[floor]}개 · 부스를 선택해 보세요
                 </span>
               )}
             </div>
           </div>
 
-          <BoothList booths={booths} selectedId={selectedId} onSelect={selectFromList} />
+          <BoothList booths={booths} plans={floorPlans} selectedId={selectedId} onSelect={selectFromList} />
         </div>
       )}
     </>

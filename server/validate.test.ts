@@ -89,9 +89,18 @@ describe('parseBoothInput', () => {
     ).toBe(0);
   });
 
-  it('잘못된 층은 거부한다', () => {
+  it('4층 부스를 허용한다', () => {
+    expect(
+      parseBoothInput({ name: 'a', team: 'b', floor: 4, amount: 0, position: { x: 0, y: 0 } }).floor,
+    ).toBe(4);
+  });
+
+  it('없는 층은 거부한다', () => {
     expect(() =>
-      parseBoothInput({ name: 'a', team: 'b', floor: 4, amount: 0, position: { x: 0, y: 0 } }),
+      parseBoothInput({ name: 'a', team: 'b', floor: 5, amount: 0, position: { x: 0, y: 0 } }),
+    ).toThrow(HttpError);
+    expect(() =>
+      parseBoothInput({ name: 'a', team: 'b', floor: 1, amount: 0, position: { x: 0, y: 0 } }),
     ).toThrow(HttpError);
   });
 

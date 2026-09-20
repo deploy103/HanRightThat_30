@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { DEFAULT_BOOTH_SIZE, FLOOR_ASPECT, MIN_BOOTH_SIZE } from '../../shared/floorPlans.js';
 import { rankBooths } from '../../shared/ranking.js';
 import { loadData } from '../db.js';
 import { publicFestivalView, visibleBooths } from '../publicView.js';
@@ -15,6 +16,20 @@ publicRouter.get(
   '/festival',
   asyncRoute(async (_req, res) => {
     res.json(publicFestivalView(await loadData()));
+  }),
+);
+
+/** 층 배치도만 따로 필요할 때 쓰는 조회용 엔드포인트 (공개 화면은 보통 /festival 한 번으로 받는다). */
+publicRouter.get(
+  '/floor-plans',
+  asyncRoute(async (_req, res) => {
+    const data = await loadData();
+    res.json({
+      aspect: FLOOR_ASPECT,
+      defaultBoothSize: DEFAULT_BOOTH_SIZE,
+      minBoothSize: MIN_BOOTH_SIZE,
+      floors: data.floorPlans,
+    });
   }),
 );
 

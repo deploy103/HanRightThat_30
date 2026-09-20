@@ -635,16 +635,96 @@ describe('관리자 CRUD (2FA 통과 세션)', () => {
   it('층 배치도를 공개 렌더러와 같은 좌표계로 내려준다', async () => {
     const plans = await call('/api/admin/floor-plans', { jar });
     expect(plans.status).toBe(200);
-    expect(plans.body.floors.map((floor: { id: number }) => floor.id)).toEqual([2, 3]);
+    expect(plans.body.floors.map((floor: { id: number }) => floor.id)).toEqual([2, 3, 4]);
     expect(plans.body.aspect).toEqual({ width: 660, height: 470 });
     expect(plans.body.defaultBoothSize).toEqual({ w: 14, h: 10 });
     expect(plans.body.minBoothSize).toEqual({ w: 4, h: 4 });
+    expect(plans.body.minRoomSize).toEqual({ w: 3, h: 3 });
+    expect(plans.body.roomTones).toEqual(['room', 'special', 'stair', 'service']);
     // 왼쪽 계단이 제거되어 계단은 층마다 하나뿐이다.
     for (const floor of plans.body.floors) {
       const stairs = floor.rooms.filter((room: { tone: string }) => room.tone === 'stair');
       expect(stairs).toHaveLength(1);
       expect(stairs[0].id).toBe(`${floor.id}-stair-right`);
     }
+  });
+
+  it('4층 배치도를 저장하면 공개 API 에도 그대로 반영되고, 되돌리기로 복구된다', async () => {
+    const before = await call('/api/admin/floor-plans', { jar });
+    const floor4 = before.body.floors.find((floor: { id: number }) => floor.id === 4);
+    expect(floor4.rooms.some((room: { label: string }) => room.label === '교실명 미정')).toBe(true);
+
+    // 이름을 고치고, 칸 하나를 지우고, 칸 하나를 새로 추가한다.
+    const edited = {
+      label: '4층',
+      hint: '본관 4층 · 중앙 복도 기준',
+      rooms: [
+        ...floor4.rooms
+          .filter((room: { tone: string }) => room.tone !== 'service')
+          .map((room: { label: string }) =>
+            room.label === '교실명 미정' ? { ...room, label: '방송실' } : room,
+          ),
+        { id: 'new-room', label: '창고', x: 40, y: 70, w: 10, h: 12, tone: 'special' },
+      ],
+    };
+    const saved = await call('/api/admin/floor-plans/4', { method: 'PUT', body: edited, jar });
+    expect(saved.status).toBe(200);
+    expect(saved.body.rooms.some((room: { label: string }) => room.label === '방송실')).toBe(true);
+    expect(saved.body.rooms.some((room: { label: string }) => room.label === '복도')).toBe(false);
+    expect(saved.body.rooms.some((room: { label: string }) => room.label === '창고')).toBe(true);
+
+    const publicView = await call('/api/public/festival');
+    const publicFloor4 = publicView.body.floorPlans.find((floor: { id: number }) => floor.id === 4);
+    expect(publicFloor4.rooms.some((room: { label: string }) => room.label === '방송실')).toBe(true);
+
+    const reset = await call('/api/admin/floor-plans/4/reset', { method: 'POST', jar });
+    expect(reset.status).toBe(200);
+    expect(reset.body.rooms.some((room: { label: string }) => room.label === '교실명 미정')).toBe(true);
+    expect(reset.body.rooms.some((room: { label: string }) => room.label === '복도')).toBe(true);
+  });
+
+  it('배치도 칸은 이름이 필요하고, 배치도 밖으로 나가면 안쪽으로 밀어 넣는다', async () => {
+    const missingLabel = await call('/api/admin/floor-plans/4', {
+      method: 'PUT',
+      body: { label: '4층', hint: '', rooms: [{ id: 'r', label: '  ', x: 0, y: 0, w: 10, h: 10, tone: 'room' }] },
+      jar,
+    });
+    expect(missingLabel.status).toBe(400);
+
+    const badTone = await call('/api/admin/floor-plans/4', {
+      method: 'PUT',
+      body: { label: '4층', hint: '', rooms: [{ id: 'r', label: '교실', x: 0, y: 0, w: 10, h: 10, tone: 'ghost' }] },
+      jar,
+    });
+    expect(badTone.status).toBe(400);
+
+    const clamped = await call('/api/admin/floor-plans/4', {
+      method: 'PUT',
+      body: {
+        label: '4층',
+        hint: '',
+        rooms: [{ id: 'r', label: '교실', x: 95, y: 98, w: 20, h: 1, tone: 'room' }],
+      },
+      jar,
+    });
+    expect(clamped.status).toBe(200);
+    // 크기를 최소값(3%)까지 키운 뒤, 오른쪽/아래로 넘치지 않도록 좌표를 민다.
+    expect(clamped.body.rooms[0]).toMatchObject({ x: 80, y: 97, w: 20, h: 3 });
+
+    const unknownFloor = await call('/api/admin/floor-plans/9', {
+      method: 'PUT',
+      body: { label: '9층', hint: '', rooms: [] },
+      jar,
+    });
+    expect(unknownFloor.status).toBe(400);
+
+    await call('/api/admin/floor-plans/4/reset', { method: 'POST', jar });
+  });
+
+  it('배치도 수정은 감사 로그에 남는다', async () => {
+    await call('/api/admin/floor-plans/4/reset', { method: 'POST', jar });
+    const logs = await call('/api/admin/audit-logs', { jar });
+    expect(logs.body.some((entry: { action: string }) => entry.action === 'floor_plan_reset')).toBe(true);
   });
 
   it('기존 기능(공연/일정/설정/순위)이 그대로 동작한다', async () => {

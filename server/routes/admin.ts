@@ -2,13 +2,22 @@ import { randomUUID } from 'node:crypto';
 import express, { Router, type Response } from 'express';
 import {
   DEFAULT_BOOTH_SIZE,
+  defaultFloorPlan,
   FLOOR_ASPECT,
-  FLOOR_IDS,
-  FLOOR_PLANS,
+  MAX_ROOMS_PER_FLOOR,
   MIN_BOOTH_SIZE,
+  MIN_ROOM_SIZE,
+  ROOM_TONES,
 } from '../../shared/floorPlans.js';
 import { rankBooths } from '../../shared/ranking.js';
-import type { Announcement, Booth, LandingState, ScheduleItem, Show } from '../../shared/types.js';
+import type {
+  Announcement,
+  Booth,
+  FloorPlanDef,
+  LandingState,
+  ScheduleItem,
+  Show,
+} from '../../shared/types.js';
 import { loadAdminData } from '../adminDb.js';
 import { visibleBooths } from '../publicView.js';
 import {
@@ -54,6 +63,8 @@ import {
   HttpError,
   parseAnnouncementInput,
   parseBoothInput,
+  parseFloorParam,
+  parseFloorPlanInput,
   parseIdList,
   parseLandingContent,
   parseMetaInput,
@@ -445,18 +456,63 @@ adminRouter.post(
 
 // --- 층 배치도 (GUI 편집기용) ---
 //
-// 공개 화면 렌더러(src/festival/FloorPlan.tsx)와 **같은 shared/floorPlans.ts** 를 그대로 내려준다.
-// 관리자 저장소는 소스를 공유하지 않으므로, 레이아웃을 그쪽에 복제하지 않고 이 엔드포인트로만 받아 간다 —
-// 덕분에 계단 제거 같은 변경이 한쪽에만 반영되어 좌표가 어긋나는 일이 없다.
+// 배치도는 저장 데이터(FestivalData.floorPlans)에 있고, 공개 화면도 같은 값을 받아 그린다.
+// 관리자 저장소는 소스를 공유하지 않으므로 레이아웃을 그쪽에 복제하지 않고 이 엔드포인트로만 주고받는다 —
+// 덕분에 교실 칸을 고쳐도 공개 화면과 편집기의 좌표가 어긋나지 않는다.
 adminRouter.get(
   '/floor-plans',
   asyncRoute(async (_req, res) => {
+    const data = await loadData();
     res.json({
       aspect: FLOOR_ASPECT,
       defaultBoothSize: DEFAULT_BOOTH_SIZE,
       minBoothSize: MIN_BOOTH_SIZE,
-      floors: FLOOR_IDS.map((id) => FLOOR_PLANS[id]),
+      minRoomSize: MIN_ROOM_SIZE,
+      maxRoomsPerFloor: MAX_ROOMS_PER_FLOOR,
+      roomTones: ROOM_TONES,
+      floors: data.floorPlans,
     });
+  }),
+);
+
+/** 한 층의 배치도를 통째로 바꾼다 (칸 추가/삭제/이동/이름 변경이 모두 이 한 요청으로 저장된다). */
+adminRouter.put(
+  '/floor-plans/:floor',
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const floor = parseFloorParam(req.params.floor);
+    const input = parseFloorPlanInput(req.body, floor);
+    let before: FloorPlanDef | undefined;
+    const plan = await mutate<FloorPlanDef>((current) => {
+      const plans = [...current.floorPlans];
+      const index = plans.findIndex((item) => item.id === floor);
+      before = index >= 0 ? plans[index] : undefined;
+      const updated: FloorPlanDef = { id: floor, ...input };
+      if (index >= 0) plans[index] = updated;
+      else plans.push(updated);
+      return [{ ...current, floorPlans: plans }, updated];
+    });
+    await audit(req, 'floor_plan_update', 'floor_plan', String(floor), before ?? null, plan);
+    res.json(plan);
+  }),
+);
+
+/** 편집을 되돌리고 싶을 때 쓰는 비상구 — 해당 층만 코드의 기본 배치도로 돌린다. 부스는 건드리지 않는다. */
+adminRouter.post(
+  '/floor-plans/:floor/reset',
+  asyncRoute(async (req: AuthedRequest, res: Response) => {
+    const floor = parseFloorParam(req.params.floor);
+    let before: FloorPlanDef | undefined;
+    const plan = await mutate<FloorPlanDef>((current) => {
+      const plans = [...current.floorPlans];
+      const index = plans.findIndex((item) => item.id === floor);
+      before = index >= 0 ? plans[index] : undefined;
+      const restored = defaultFloorPlan(floor);
+      if (index >= 0) plans[index] = restored;
+      else plans.push(restored);
+      return [{ ...current, floorPlans: plans }, restored];
+    });
+    await audit(req, 'floor_plan_reset', 'floor_plan', String(floor), before ?? null, plan);
+    res.json(plan);
   }),
 );
 

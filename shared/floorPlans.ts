@@ -1,9 +1,11 @@
 /**
- * 층 배치도(Floor Map) 단일 진실 공급원.
+ * 층 배치도(Floor Map)의 좌표 규칙과 **기본 레이아웃**.
  *
- * 공개 화면(읽기 전용 렌더러)과 관리자 GUI 편집기가 같은 좌표계·같은 레이아웃을 쓰도록
- * 이 파일 하나만 바라본다. 관리자 저장소는 파일을 공유하지 않으므로
- * `GET /api/public/floor-plans` 로 이 데이터를 그대로 받아 간다.
+ * 여기 값은 "초기 시드"다 — 운영 중 실제로 그려지는 배치도는 저장 데이터
+ * (FestivalData.floorPlans)에 있고, 관리자 화면에서 교실 칸을 추가/삭제/이동할 수 있다.
+ * 저장 파일에 아직 해당 층이 없으면(새 배포, 새 층 추가) 이 기본값이 그대로 채워진다.
+ * 공개 화면은 `GET /api/public/festival`(또는 `/api/public/floor-plans`), 관리자 화면은
+ * `GET /api/admin/floor-plans` 로 같은 데이터를 받아 그린다.
  *
  * 좌표계 규칙 (부스/교실 공통)
  * - 모든 값은 배치도 상자 기준 0~100 % 다. 픽셀 절대좌표는 어디에도 저장하지 않는다.
@@ -14,27 +16,13 @@
  *   (기존 데이터의 position 이 핀 중심이었기 때문에 그대로 호환된다.)
  */
 
-import type { FloorId } from './types.js';
+import type { FloorId, FloorPlanDef, FloorRoom, RoomTone } from './types.js';
 
-export type RoomTone = 'room' | 'special' | 'stair' | 'service';
+// 타입 정의는 shared/types.ts 한 곳에 모여 있다 (저장 데이터에도 그대로 들어가기 때문).
+export type { FloorPlanDef, FloorRoom, RoomTone };
 
-export interface FloorRoom {
-  id: string;
-  label: string;
-  /** 배치도 기준 % 좌표 (왼쪽 위 0,0) */
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  tone: RoomTone;
-}
-
-export interface FloorPlanDef {
-  id: FloorId;
-  label: string;
-  hint: string;
-  rooms: FloorRoom[];
-}
+/** 칸 종류 목록 — 관리자 편집기의 선택지와 서버 검증이 같은 값을 쓴다. */
+export const ROOM_TONES: RoomTone[] = ['room', 'special', 'stair', 'service'];
 
 /** 배치도 상자의 가로:세로 비율. 렌더러(CSS aspect-ratio)와 반드시 같아야 한다. */
 export const FLOOR_ASPECT = { width: 660, height: 470 } as const;
@@ -45,8 +33,14 @@ export const DEFAULT_BOOTH_SIZE = { w: 14, h: 10 } as const;
 /** 편집기에서 허용하는 최소 부스 크기 (%) — 이보다 작으면 클릭/터치가 불가능해진다. */
 export const MIN_BOOTH_SIZE = { w: 4, h: 4 } as const;
 
+/** 편집기에서 허용하는 최소 교실 칸 크기 (%). */
+export const MIN_ROOM_SIZE = { w: 3, h: 3 } as const;
+
+/** 한 층에 둘 수 있는 칸 수 상한 — 실수로 거대한 배치도를 저장하는 것을 막는다. */
+export const MAX_ROOMS_PER_FLOOR = 40;
+
 /**
- * 2층과 3층은 같은 구조(오른쪽 계단 + 교실 4칸 + 복도)를 쓰므로
+ * 2·3·4층은 같은 구조(오른쪽 계단 + 교실 4칸 + 복도)를 쓰므로
  * 레이아웃을 복제하지 않고 교실 이름만 데이터로 분리한다.
  */
 function buildFloor(id: FloorId, hint: string, classrooms: string[]): FloorPlanDef {
@@ -94,9 +88,33 @@ export const FLOOR_PLANS: Record<FloorId, FloorPlanDef> = {
     '클라우드보안과 2-1',
     '클라우드보안과 2-2',
   ]),
+  // 4층은 3층과 같은 구조로 시작한다. 네 번째 교실 이름은 아직 미정이라
+  // 임시 라벨을 넣어 두었고, 관리자 화면에서 바로 고칠 수 있다.
+  4: buildFloor(4, '본관 4층 · 중앙 복도 기준', [
+    '메타버스게임과 3-1',
+    '클라우드보안과 3-1',
+    '클라우드보안과 3-2',
+    '교실명 미정',
+  ]),
 };
 
-export const FLOOR_IDS: FloorId[] = [2, 3];
+export const FLOOR_IDS: FloorId[] = [2, 3, 4];
+
+/** 저장 데이터가 비어 있을 때 쓰는 기본 배치도 묶음. 호출할 때마다 새 객체를 만든다(공유 참조 금지). */
+export function defaultFloorPlans(): FloorPlanDef[] {
+  return FLOOR_IDS.map((id) => defaultFloorPlan(id));
+}
+
+/** 한 층의 기본 배치도 사본. 관리자의 "기본값으로 되돌리기" 도 이 값을 쓴다. */
+export function defaultFloorPlan(id: FloorId): FloorPlanDef {
+  const plan = FLOOR_PLANS[id];
+  return { ...plan, rooms: plan.rooms.map((room) => ({ ...room })) };
+}
+
+/** 배치도 목록에서 층을 찾는다. 저장 데이터에 없으면 기본값으로 대신한다. */
+export function findFloorPlan(plans: FloorPlanDef[] | undefined, id: FloorId): FloorPlanDef {
+  return plans?.find((plan) => plan.id === id) ?? defaultFloorPlan(id);
+}
 
 export interface BoothRect {
   /** 왼쪽 위 기준 % */

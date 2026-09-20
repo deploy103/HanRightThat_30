@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_BOOTH_SIZE,
+  defaultFloorPlan,
+  defaultFloorPlans,
+  findFloorPlan,
   FLOOR_IDS,
   FLOOR_PLANS,
   fromRect,
@@ -9,9 +12,38 @@ import {
 } from './floorPlans.js';
 
 describe('층 배치도 레이아웃', () => {
-  it('2층과 3층 모두 정의되어 있다', () => {
-    expect(FLOOR_IDS).toEqual([2, 3]);
-    expect(FLOOR_PLANS[2].rooms.length).toBe(FLOOR_PLANS[3].rooms.length);
+  it('2·3·4층이 모두 같은 구조로 정의되어 있다', () => {
+    expect(FLOOR_IDS).toEqual([2, 3, 4]);
+    expect(FLOOR_PLANS[3].rooms.length).toBe(FLOOR_PLANS[2].rooms.length);
+    expect(FLOOR_PLANS[4].rooms.length).toBe(FLOOR_PLANS[3].rooms.length);
+  });
+
+  it('4층은 3층을 복제한 좌표에 4개 교실을 갖는다', () => {
+    const classrooms = FLOOR_PLANS[4].rooms.filter((room) => room.tone === 'room');
+    expect(classrooms.map((room) => room.label)).toEqual([
+      '메타버스게임과 3-1',
+      '클라우드보안과 3-1',
+      '클라우드보안과 3-2',
+      '교실명 미정',
+    ]);
+    // 3층과 같은 칸 좌표 — 부스를 층 사이로 옮겨도 자리가 어긋나지 않는다.
+    expect(classrooms.map((room) => [room.x, room.y, room.w, room.h])).toEqual(
+      FLOOR_PLANS[3].rooms.filter((room) => room.tone === 'room').map((room) => [room.x, room.y, room.w, room.h]),
+    );
+  });
+
+  it('defaultFloorPlan 은 매번 새 사본을 준다 (편집이 기본값을 오염시키지 않도록)', () => {
+    const first = defaultFloorPlan(4);
+    first.rooms[0].label = '바뀐 이름';
+    expect(defaultFloorPlan(4).rooms[0].label).not.toBe('바뀐 이름');
+    expect(defaultFloorPlans().map((plan) => plan.id)).toEqual(FLOOR_IDS);
+  });
+
+  it('findFloorPlan 은 저장 데이터에 없는 층을 기본값으로 메운다', () => {
+    const stored = [{ ...defaultFloorPlan(2), label: '이층' }];
+    expect(findFloorPlan(stored, 2).label).toBe('이층');
+    expect(findFloorPlan(stored, 4).label).toBe('4층');
+    expect(findFloorPlan(undefined, 3).label).toBe('3층');
   });
 
   it('왼쪽 계단은 제거되고 오른쪽 계단만 남는다', () => {

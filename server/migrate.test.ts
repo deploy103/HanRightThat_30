@@ -54,6 +54,45 @@ describe('데이터 마이그레이션', () => {
     expect(result.dataVersion).toBe(CURRENT_DATA_VERSION);
   });
 
+  it('배치도가 없던 저장 파일에는 2·3·4층 기본 배치도를 채워 준다', () => {
+    const result = normalizeFestivalData(legacyData());
+    expect(result.floorPlans.map((plan) => plan.id)).toEqual([2, 3, 4]);
+    expect(result.floorPlans[2].rooms.some((room) => room.label === '메타버스게임과 3-1')).toBe(true);
+  });
+
+  it('이미 편집된 배치도는 유지하고, 빠진 층만 기본값으로 채운다', () => {
+    const edited = {
+      ...legacyData(),
+      floorPlans: [
+        {
+          id: 2,
+          label: '이층',
+          hint: '편집됨',
+          rooms: [{ id: 'kept', label: '바뀐 교실', x: 10, y: 6, w: 19, h: 54, tone: 'room' }],
+        },
+      ],
+    };
+    const result = normalizeFestivalData(edited);
+    expect(result.floorPlans.map((plan) => plan.id)).toEqual([2, 3, 4]);
+    expect(result.floorPlans[0]).toMatchObject({ label: '이층', hint: '편집됨' });
+    expect(result.floorPlans[0].rooms).toHaveLength(1);
+    expect(result.floorPlans[1].label).toBe('3층');
+  });
+
+  it('배치도가 깨져 있으면 그 층만 기본값으로 되돌린다', () => {
+    const broken = {
+      ...legacyData(),
+      floorPlans: [
+        { id: 2, label: '이층', hint: '', rooms: [{ id: 'a', label: '교실', x: 1, y: 1, w: 9, h: 9, tone: 'room' }] },
+        { id: 3, label: '', rooms: 'not-an-array' },
+      ],
+    };
+    const result = normalizeFestivalData(broken);
+    expect(result.floorPlans[0].label).toBe('이층');
+    expect(result.floorPlans[1].label).toBe('3층');
+    expect(result.floorPlans[1].rooms.length).toBeGreaterThan(0);
+  });
+
   it('여러 번 실행해도 학부모 부스가 중복 생성되지 않는다', () => {
     const once = normalizeFestivalData(legacyData());
     const twice = normalizeFestivalData(JSON.parse(JSON.stringify(once)));

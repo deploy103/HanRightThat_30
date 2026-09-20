@@ -115,6 +115,37 @@ describe('공개 층 배치도', () => {
     expect(html).toContain('height:10%');
   });
 
+  it('4층 배치도를 기본값으로 그린다', () => {
+    const html = renderToStaticMarkup(
+      createElement(FloorPlan, { floor: 4, booths: [], selectedId: null, onSelect: () => {} }),
+    );
+    expect(html).toContain('4층');
+    expect(html).toContain('메타버스게임과 3-1');
+    expect(html).toContain('클라우드보안과 3-2');
+  });
+
+  it('서버에서 받은 배치도가 있으면 그쪽을 그린다 (관리자가 고친 교실 이름이 그대로 보인다)', () => {
+    const html = renderToStaticMarkup(
+      createElement(FloorPlan, {
+        floor: 4,
+        plans: [
+          {
+            id: 4,
+            label: '4층',
+            hint: '편집됨',
+            rooms: [{ id: 'r1', label: '방송실', x: 10, y: 6, w: 19, h: 54, tone: 'room' }],
+          },
+        ],
+        booths: [],
+        selectedId: null,
+        onSelect: () => {},
+      }),
+    );
+    expect(html).toContain('방송실');
+    expect(html).toContain('편집됨');
+    expect(html).not.toContain('메타버스게임과 3-1');
+  });
+
   it('선택/운영 종료 상태가 클래스에 반영된다', () => {
     const html = renderToStaticMarkup(
       createElement(FloorPlan, {

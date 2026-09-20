@@ -1,9 +1,19 @@
 import type { RankedBooth } from '../../shared/ranking';
-import type { Announcement, Booth, FestivalMeta, LandingContent, ScheduleItem, Show } from '../../shared/types';
+import type {
+  Announcement,
+  Booth,
+  FestivalMeta,
+  FloorPlanDef,
+  LandingContent,
+  ScheduleItem,
+  Show,
+} from '../../shared/types';
 
 /** 공개 API(`/api/public/festival`) 응답 모양. 관리자 전용 필드는 포함되지 않는다. */
 export interface PublicFestival {
   meta: FestivalMeta;
+  /** 관리자가 편집한 층 배치도 (교실/복도/계단 칸). */
+  floorPlans: FloorPlanDef[];
   booths: Booth[];
   shows: Show[];
   scheduleItems: ScheduleItem[];

@@ -1,15 +1,17 @@
-import type { Booth, FloorId } from '../../shared/types';
-import { FLOOR_IDS, FLOOR_PLANS } from '../../shared/floorPlans';
+import type { Booth, FloorId, FloorPlanDef } from '../../shared/types';
+import { FLOOR_IDS, findFloorPlan } from '../../shared/floorPlans';
 import { formatWon } from '../lib/format';
 
 interface Props {
   booths: Booth[];
+  /** 서버에서 받은 배치도 (층 이름을 여기서 읽는다). */
+  plans?: FloorPlanDef[];
   selectedId: string | null;
   onSelect: (booth: Booth) => void;
 }
 
 /** 전체 부스를 층별로 묶어 보여준다. 클릭하면 해당 층 지도로 이동한다. */
-export function BoothList({ booths, selectedId, onSelect }: Props) {
+export function BoothList({ booths, plans, selectedId, onSelect }: Props) {
   return (
     <aside className="booth-list">
       <h3>부스 목록</h3>
@@ -20,7 +22,7 @@ export function BoothList({ booths, selectedId, onSelect }: Props) {
         if (floorBooths.length === 0) return null;
         return (
           <section key={floor} className="booth-list-group">
-            <h4>{FLOOR_PLANS[floor].label}</h4>
+            <h4>{findFloorPlan(plans, floor).label}</h4>
             <ul>
               {floorBooths.map((booth, index) => (
                 <li key={booth.id}>

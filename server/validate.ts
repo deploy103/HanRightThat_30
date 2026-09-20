@@ -1,4 +1,15 @@
-import { DEFAULT_BOOTH_SIZE, MIN_BOOTH_SIZE } from '../shared/floorPlans.js';
+import { randomUUID } from 'node:crypto';
+import {
+  DEFAULT_BOOTH_SIZE,
+  defaultFloorPlan,
+  defaultFloorPlans,
+  FLOOR_IDS,
+  MAX_ROOMS_PER_FLOOR,
+  MIN_BOOTH_SIZE,
+  MIN_ROOM_SIZE,
+  ROOM_TONES,
+  roundPercent,
+} from '../shared/floorPlans.js';
 import type {
   Announcement,
   AnnouncementInput,
@@ -10,6 +21,9 @@ import type {
   FestivalMeta,
   FestivalSettings,
   FloorId,
+  FloorPlanDef,
+  FloorPlanInput,
+  FloorRoom,
   LandingContent,
   LandingState,
   ScheduleItem,
@@ -30,7 +44,7 @@ export class HttpError extends Error {
   }
 }
 
-export const FLOORS: FloorId[] = [2, 3];
+export const FLOORS: FloorId[] = [...FLOOR_IDS];
 
 function asRecord(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -71,8 +85,15 @@ function requirePercent(value: unknown, label: string): number {
 
 function requireFloor(value: unknown): FloorId {
   const num = typeof value === 'string' ? Number(value) : value;
-  if (num !== 2 && num !== 3) throw new HttpError(400, '층은 2 또는 3이어야 합니다.');
-  return num;
+  if (!FLOORS.includes(num as FloorId)) {
+    throw new HttpError(400, `층은 ${FLOORS.join(', ')} 중 하나여야 합니다.`);
+  }
+  return num as FloorId;
+}
+
+/** 라우트가 URL 파라미터(":floor")를 층 번호로 바꿀 때 쓴다. */
+export function parseFloorParam(value: unknown): FloorId {
+  return requireFloor(value);
 }
 
 function requireTime(value: unknown): string {
@@ -205,6 +226,89 @@ export function parseMetaInput(body: unknown): FestivalMeta {
     goal: requireAmount(raw.goal ?? 0, '목표 금액'),
     stage: optionalText(raw.stage, '공연 장소', 30) ?? '',
   };
+}
+
+// ---------------------------------------------------------------------------
+// 층 배치도 (교실/복도/계단 칸)
+// ---------------------------------------------------------------------------
+
+/** 칸 하나가 배치도(0~100%) 안에 완전히 들어오도록 크기를 먼저 줄이고 위치를 민다. */
+function clampRoomGeometry(room: { x: number; y: number; w: number; h: number }) {
+  const w = Math.min(100, Math.max(MIN_ROOM_SIZE.w, room.w));
+  const h = Math.min(100, Math.max(MIN_ROOM_SIZE.h, room.h));
+  return {
+    x: roundPercent(Math.min(100 - w, Math.max(0, room.x))),
+    y: roundPercent(Math.min(100 - h, Math.max(0, room.y))),
+    w: roundPercent(w),
+    h: roundPercent(h),
+  };
+}
+
+function requireRoomTone(value: unknown): FloorRoom['tone'] {
+  if (typeof value !== 'string' || !ROOM_TONES.includes(value as FloorRoom['tone'])) {
+    throw new HttpError(400, `칸 종류는 ${ROOM_TONES.join(', ')} 중 하나여야 합니다.`);
+  }
+  return value as FloorRoom['tone'];
+}
+
+function parseFloorRoom(value: unknown, floor: FloorId, index: number, usedIds: Set<string>): FloorRoom {
+  const raw = asRecord(value, `${floor}층 ${index + 1}번 칸`);
+  const geometry = clampRoomGeometry({
+    x: requirePercent(raw.x, '칸 X'),
+    y: requirePercent(raw.y, '칸 Y'),
+    w: requirePercent(raw.w, '칸 너비'),
+    h: requirePercent(raw.h, '칸 높이'),
+  });
+  // id 는 화면에서 key 로만 쓰이므로, 비었거나 겹치면 서버가 새로 만들어 준다.
+  const requested = typeof raw.id === 'string' ? raw.id.trim().slice(0, 60) : '';
+  const id = requested && !usedIds.has(requested) ? requested : `${floor}-room-${index}-${randomUUID().slice(0, 8)}`;
+  usedIds.add(id);
+  return {
+    id,
+    label: requireText(raw.label, '칸 이름', 40),
+    ...geometry,
+    tone: requireRoomTone(raw.tone),
+  };
+}
+
+/** 관리자가 보낸 한 층의 배치도. id 는 URL 로 받으므로 본문 값은 무시한다. */
+export function parseFloorPlanInput(body: unknown, floor: FloorId): FloorPlanInput {
+  const raw = asRecord(body, '층 배치도');
+  const rooms = raw.rooms;
+  if (!Array.isArray(rooms)) throw new HttpError(400, '칸 목록이 올바르지 않습니다.');
+  if (rooms.length > MAX_ROOMS_PER_FLOOR) {
+    throw new HttpError(400, `한 층에는 칸을 최대 ${MAX_ROOMS_PER_FLOOR}개까지 둘 수 있습니다.`);
+  }
+  const usedIds = new Set<string>();
+  return {
+    label: requireText(raw.label, '층 이름', 20),
+    hint: optionalText(raw.hint, '층 설명', 60) ?? '',
+    rooms: rooms.map((room, index) => parseFloorRoom(room, floor, index, usedIds)),
+  };
+}
+
+/**
+ * 저장 파일의 배치도를 보정한다.
+ * - 값이 깨졌으면 그 층만 기본값으로 되돌린다 (다른 층 편집 결과는 살린다).
+ * - 파일에 없는 층(새로 추가된 4층 등)은 기본값으로 채운다 — 기존 배포도 재배포만으로 새 층이 생긴다.
+ */
+export function normalizeFloorPlans(value: unknown): FloorPlanDef[] {
+  if (!Array.isArray(value)) return defaultFloorPlans();
+  const stored = new Map<FloorId, unknown>();
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) continue;
+    const id = (item as { id?: unknown }).id;
+    if (FLOORS.includes(id as FloorId)) stored.set(id as FloorId, item);
+  }
+  return FLOORS.map((id) => {
+    const raw = stored.get(id);
+    if (raw === undefined) return defaultFloorPlan(id);
+    try {
+      return { id, ...parseFloorPlanInput(raw, id) };
+    } catch {
+      return defaultFloorPlan(id);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -376,6 +480,7 @@ export function normalizeFestivalData(value: unknown): FestivalData {
       }
     })(),
     landing: normalizeLandingState(raw.landing),
+    floorPlans: normalizeFloorPlans(raw.floorPlans),
     booths: booths.flatMap((item, index): Booth[] => {
       try {
         const record = asRecord(item, '부스');

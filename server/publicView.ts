@@ -11,6 +11,8 @@ export function publicFestivalView(data: FestivalData) {
   const rankingsPublic = data.settings.rankingsPublic;
   return {
     meta: data.meta,
+    // 공개 화면도 관리자가 편집한 배치도를 그대로 그린다 (코드에 박힌 레이아웃을 쓰지 않는다).
+    floorPlans: data.floorPlans,
     booths,
     shows: data.shows,
     scheduleItems: data.scheduleItems,

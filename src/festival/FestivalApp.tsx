@@ -77,7 +77,9 @@ export function FestivalApp({ tab, boothId, navigate }: Props) {
                     meta={data.meta}
                   />
                 ) : null}
-                {item.id === 'map' ? <MapView booths={data.booths} initialBoothId={boothId} /> : null}
+                {item.id === 'map' ? (
+                  <MapView booths={data.booths} floorPlans={data.floorPlans} initialBoothId={boothId} />
+                ) : null}
                 {item.id === 'schedule' ? <ScheduleView shows={data.shows} meta={data.meta} /> : null}
                 {item.id === 'notice' ? <NoticeView announcements={data.announcements} /> : null}
               </section>

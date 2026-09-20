@@ -1,6 +1,31 @@
 /** 클라이언트/서버가 공유하는 타입 정의 (타입 전용 모듈). */
 
-export type FloorId = 2 | 3;
+export type FloorId = 2 | 3 | 4;
+
+/** 배치도 칸의 종류. 색/테두리만 달라지고 좌표 규칙은 모두 같다. */
+export type RoomTone = 'room' | 'special' | 'stair' | 'service';
+
+/**
+ * 배치도 칸(교실/복도/계단) 하나.
+ * 좌표는 배치도 대비 % 이고 왼쪽 위(x, y) + 크기(w, h) 기준이다 (부스와 달리 중심 기준이 아니다).
+ */
+export interface FloorRoom {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  tone: RoomTone;
+}
+
+/** 한 층의 배치도. 관리자 화면에서 편집되어 저장 데이터(FestivalData.floorPlans)에 들어간다. */
+export interface FloorPlanDef {
+  id: FloorId;
+  label: string;
+  hint: string;
+  rooms: FloorRoom[];
+}
 
 export interface BoothPosition {
   /** 층 배치도 기준 가로 위치 (0~100%). 부스 영역의 "중심" 이다. */
@@ -135,6 +160,8 @@ export interface FestivalData {
   /** 저장 데이터 마이그레이션 버전. normalizeFestivalData 가 올려 준다. */
   dataVersion?: number;
   meta: FestivalMeta;
+  /** 층 배치도. 저장 파일이 단일 진실 공급원이고, shared/floorPlans.ts 의 값은 초기 시드일 뿐이다. */
+  floorPlans: FloorPlanDef[];
   booths: Booth[];
   shows: Show[];
   scheduleItems: ScheduleItem[];
@@ -144,6 +171,8 @@ export interface FestivalData {
 }
 
 export type BoothInput = Omit<Booth, 'id' | 'archivedAt'>;
+/** 층 배치도 수정 입력 — id 는 URL 로 받으므로 본문에 없다. */
+export type FloorPlanInput = Omit<FloorPlanDef, 'id'>;
 export type ShowInput = Omit<Show, 'id'>;
 export type ScheduleItemInput = Omit<ScheduleItem, 'id'>;
 export type AnnouncementInput = Omit<Announcement, 'id' | 'createdAt' | 'updatedAt'>;

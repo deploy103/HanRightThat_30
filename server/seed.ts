@@ -1,3 +1,4 @@
+import { defaultFloorPlans } from '../shared/floorPlans.js';
 import type { Booth, FestivalData, LandingContent, LandingState } from '../shared/types.js';
 
 /**
@@ -87,6 +88,8 @@ export function createSeedData(): FestivalData {
     settings: {
       rankingsPublic: true,
     },
+    // 배치도는 시드 이후 관리자 화면에서 편집된다 — 여기 값은 첫 실행 때 한 번만 쓰인다.
+    floorPlans: defaultFloorPlans(),
     booths: [
       {
         id: 'booth-cottoncandy',

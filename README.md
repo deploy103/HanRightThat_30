@@ -1,6 +1,6 @@
 # 제30회 한빛제 안내 웹사이트 (public + API)
 
-축제 소개(`/`) + 부스 모금 순위 · 부스 배치도(2층/3층) · 공연 순서를 보여주는 현장 화면(`/play/*`)과,
+축제 소개(`/`) + 부스 모금 순위 · 부스 배치도(2층/3층/4층) · 공연 순서를 보여주는 현장 화면(`/play/*`)과,
 이 데이터를 서빙하는 API 서버로 구성된다.
 
 | 경로 | 내용 |
@@ -164,6 +164,16 @@ docker compose exec web node dist-server/server/resetTwoFactor.js --username adm
   "dataVersion": 1,
   "meta": { "updated": "9월 8일 오후 3시 기준", "goal": 0, "stage": "대강당" },
   "settings": { "rankingsPublic": true },
+  "floorPlans": [
+    {
+      "id": 4,
+      "label": "4층",
+      "hint": "본관 4층 · 중앙 복도 기준",
+      "rooms": [
+        { "id": "4-room-0", "label": "메타버스게임과 3-1", "x": 10, "y": 6, "w": 19, "h": 54, "tone": "room" }
+      ]
+    }
+  ],
   "booths": [
     {
       "id": "booth-cottoncandy",
@@ -208,6 +218,12 @@ docker compose exec web node dist-server/server/resetTwoFactor.js --username adm
 |---|---|
 | 1 | 3층 지능형소프트웨어과 교실 앞 **학부모 부스**(`booth-parents`) 추가. 같은 id 가 이미 있으면(보관 처리 포함) 건드리지 않는다 |
 
+`floorPlans` 는 층 배치도(교실·복도·계단 칸)다. **저장 파일이 단일 진실 공급원**이고 관리자 화면에서
+칸을 추가/삭제/이동하거나 이름을 바꿀 수 있다. `shared/floorPlans.ts` 의 값은 초기 시드일 뿐이라,
+파일에 없는 층(예: 새로 추가된 4층)만 서버가 읽을 때 기본값으로 채운다 — 이미 편집한 층은 건드리지 않는다.
+칸 좌표는 **왼쪽 위(x, y) + 크기(w, h)** 기준 %이고, `tone` 은 `room`(교실) / `special`(특별실) /
+`stair`(계단) / `service`(복도·기타) 중 하나다.
+
 `position` 은 부스 영역의 **중심**(배치도 대비 %), `size` 는 영역 **크기**(%)다. 픽셀 좌표는 어디에도 저장하지 않으므로
 PC·태블릿·모바일에서 같은 위치에 그려진다. `size` 가 없는 예전 데이터는 기본값 `{ w: 14, h: 10 }` 으로 그려진다.
 
@@ -248,7 +264,7 @@ PC·태블릿·모바일에서 같은 위치에 그려진다. `size` 가 없는 
 | GET | `/api/public/schedule` | 축제 전체 일정 — 소개 페이지 `/` 의 "축제 전체 일정" 구역이 씀 |
 | GET | `/api/public/rankings` | 서버가 계산한 순위. `rankingsPublic=false` 면 빈 배열 |
 | GET | `/api/public/announcements` | 게시된 공지만 — 소개 페이지 `/` 의 "공지" 구역과 `/play/notice` 공지 탭이 씀 |
-| GET | `/api/public/floor-plans` | 층 배치도(교실·복도·계단 레이아웃) + 좌표계 상수. **공개 렌더러와 관리자 GUI 편집기의 단일 출처** |
+| GET | `/api/public/floor-plans` | 층 배치도(교실·복도·계단 레이아웃) + 좌표계 상수. `/api/public/festival` 의 `floorPlans` 와 같은 값 |
 
 순위는 항상 서버(`shared/ranking.ts`)가 계산해서 내려준다 — 클라이언트는 재계산하지 않는다.
 
@@ -276,6 +292,9 @@ POST /auth/login          비밀번호 검증 → 임시 세션(PASSWORD_VERIFIE
 | GET | `/api/admin/2fa/status` | 활성 여부 · 활성 시각 · 남은 복구 코드 수 (secret 은 절대 반환하지 않음) |
 | POST/DELETE | `/api/admin/booth-images`, `/booth-images/:name` | 부스 대표 이미지 업로드 / 삭제 |
 | GET/POST | `/api/admin/booths`, PUT/DELETE `/:id`, POST `/:id/restore` | 부스 CRUD. DELETE 는 하드 삭제가 아니라 보관(soft delete) |
+| GET | `/api/admin/floor-plans` | 층 배치도 + 좌표계 상수(칸 최소 크기·칸 수 상한·칸 종류 목록) |
+| PUT | `/api/admin/floor-plans/:floor` | 그 층의 배치도를 통째로 교체(칸 추가/삭제/이동/이름 변경). 감사 로그 `floor_plan_update` |
+| POST | `/api/admin/floor-plans/:floor/reset` | 그 층만 기본 배치도로 되돌린다(부스는 그대로). 감사 로그 `floor_plan_reset` |
 | GET/POST | `/api/admin/performances`, PUT/DELETE `/:id`, PUT `/order` | 공연 CRUD + 순서 변경 |
 | GET/POST | `/api/admin/schedule`, PUT/DELETE `/:id` | 축제 일정 CRUD |
 | GET/POST | `/api/admin/announcements`, PUT/DELETE `/:id` | 공지 CRUD |
@@ -327,25 +346,30 @@ JSON 404를 반환한다(`server/index.ts`).
 - `src/festival/` 현장 화면(`/play/*`) (RankingView / MapView / ScheduleView / NoticeView)
 - `src/hooks/useRoute.ts` 이 프로젝트의 유일한 라우터. react-router 등을 새로 설치하지 않고
   `history.pushState`/`popstate` 로 `/`, `/play`, `/play/map|ranking|schedule|notice` 만 처리하는 최소 구현이다.
-- `shared/floorPlans.ts` 층 배치도 형상 데이터 + 좌표 변환(`toRect`/`fromRect`). 공개 렌더러·서버·
-  (API 를 통해) 관리자 편집기가 모두 이 파일 하나를 바라본다
+- `shared/floorPlans.ts` 층 배치도 **기본값**(초기 시드) + 좌표 변환(`toRect`/`fromRect`). 실제로 그려지는
+  배치도는 `data/festival.json` 의 `floorPlans` 이고, 공개 렌더러·관리자 편집기가 API 로 같은 값을 받는다
 - `src/styles/tokens.css` 색·폰트·레이아웃 토큰, `src/styles/landing.css` 소개 화면 전용 스타일
 - `shared/` 클라이언트/서버가 함께 쓰는 타입(`types.ts`), 순위 계산(`ranking.ts`), 층 배치도(`floorPlans.ts`)
 
 ### 지도 구조
 
 ```
-shared/floorPlans.ts   ← Floor Map (교실/복도/계단 레이아웃) + 좌표 변환 규칙
+shared/floorPlans.ts                  ← 좌표 변환 규칙 + **기본** 배치도(초기 시드)
+        │  (파일에 없는 층만 채운다)
+        ▼
+data/festival.json floorPlans[]       ← Floor Map (교실/복도/계단 칸) — 단일 진실 공급원
         │
-        ├── GET /api/public/floor-plans ──→ 관리자 GUI 편집기 (drag / resize / create / delete)
+        ├── GET/PUT /api/admin/floor-plans ──→ 관리자 GUI 편집기
+        │        (부스: drag / resize / create / archive, 교실 칸: drag / resize / create / delete / rename)
         │
-        └── src/festival/FloorPlan.tsx ──→ 공개 렌더러 (읽기 전용)
+        └── GET /api/public/festival(.floorPlans) ──→ 공개 렌더러 src/festival/FloorPlan.tsx (읽기 전용)
 
 data/festival.json booths[].position / .size  ← Booth Layout Data (중심 % + 크기 %)
 ```
 
 공개 화면에는 어떤 편집 기능도 없고, 관리자 편집기는 좌표를 화면에서 끌어서 만든다.
 레이아웃이 두 곳에 복제되지 않으므로 한쪽만 고쳐서 위치가 어긋나는 일이 없다.
+교실 칸을 지워도 그 자리의 부스는 지워지지 않는다(부스와 칸은 서로 독립된 데이터다).
 
 ## 데이터 백업 · 이행 · 복구
 
