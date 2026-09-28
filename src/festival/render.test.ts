@@ -115,6 +115,15 @@ describe('공개 층 배치도', () => {
     expect(html).toContain('height:10%');
   });
 
+  it('1층은 빈 배치도(기본값)로 그려진다', () => {
+    const html = renderToStaticMarkup(
+      createElement(FloorPlan, { floor: 1, booths: [], selectedId: null, onSelect: () => {} }),
+    );
+    expect(html).toContain('1층');
+    expect(html).not.toContain('room-room');
+    expect(html).not.toContain('room-stair');
+  });
+
   it('4층 배치도를 기본값으로 그린다', () => {
     const html = renderToStaticMarkup(
       createElement(FloorPlan, { floor: 4, booths: [], selectedId: null, onSelect: () => {} }),

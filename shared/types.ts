@@ -1,6 +1,6 @@
 /** 클라이언트/서버가 공유하는 타입 정의 (타입 전용 모듈). */
 
-export type FloorId = 2 | 3 | 4;
+export type FloorId = 1 | 2 | 3 | 4;
 
 /** 배치도 칸의 종류. 색/테두리만 달라지고 좌표 규칙은 모두 같다. */
 export type RoomTone = 'room' | 'special' | 'stair' | 'service';

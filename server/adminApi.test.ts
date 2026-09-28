@@ -635,14 +635,15 @@ describe('관리자 CRUD (2FA 통과 세션)', () => {
   it('층 배치도를 공개 렌더러와 같은 좌표계로 내려준다', async () => {
     const plans = await call('/api/admin/floor-plans', { jar });
     expect(plans.status).toBe(200);
-    expect(plans.body.floors.map((floor: { id: number }) => floor.id)).toEqual([2, 3, 4]);
+    expect(plans.body.floors.map((floor: { id: number }) => floor.id)).toEqual([1, 2, 3, 4]);
     expect(plans.body.aspect).toEqual({ width: 660, height: 470 });
     expect(plans.body.defaultBoothSize).toEqual({ w: 14, h: 10 });
     expect(plans.body.minBoothSize).toEqual({ w: 4, h: 4 });
     expect(plans.body.minRoomSize).toEqual({ w: 3, h: 3 });
     expect(plans.body.roomTones).toEqual(['room', 'special', 'stair', 'service']);
-    // 왼쪽 계단이 제거되어 계단은 층마다 하나뿐이다.
+    // 왼쪽 계단이 제거되어 계단은 층마다 하나뿐이다 (1층은 아직 빈 배치도라 제외).
     for (const floor of plans.body.floors) {
+      if (floor.rooms.length === 0) continue;
       const stairs = floor.rooms.filter((room: { tone: string }) => room.tone === 'stair');
       expect(stairs).toHaveLength(1);
       expect(stairs[0].id).toBe(`${floor.id}-stair-right`);
@@ -681,6 +682,34 @@ describe('관리자 CRUD (2FA 통과 세션)', () => {
     expect(reset.status).toBe(200);
     expect(reset.body.rooms.some((room: { label: string }) => room.label === '교실명 미정')).toBe(true);
     expect(reset.body.rooms.some((room: { label: string }) => room.label === '복도')).toBe(true);
+  });
+
+  it('1층은 빈 배치도로 시작하고, 관리자가 칸을 추가하면 저장 후에도 그대로 남는다', async () => {
+    const before = await call('/api/admin/floor-plans', { jar });
+    const floor1 = before.body.floors.find((floor: { id: number }) => floor.id === 1);
+    expect(floor1).toMatchObject({ label: '1층', rooms: [] });
+
+    const edited = {
+      label: '1층',
+      hint: '본관 1층 · 정문 로비',
+      rooms: [{ id: 'entrance', label: '입구 홀', x: 10, y: 10, w: 30, h: 20, tone: 'service' }],
+    };
+    const saved = await call('/api/admin/floor-plans/1', { method: 'PUT', body: edited, jar });
+    expect(saved.status).toBe(200);
+    expect(saved.body.rooms.some((room: { label: string }) => room.label === '입구 홀')).toBe(true);
+
+    // 새로고침(재조회)해도 저장된 값이 그대로 남아 있어야 한다.
+    const reloaded = await call('/api/admin/floor-plans', { jar });
+    const reloadedFloor1 = reloaded.body.floors.find((floor: { id: number }) => floor.id === 1);
+    expect(reloadedFloor1.rooms.some((room: { label: string }) => room.label === '입구 홀')).toBe(true);
+
+    const publicView = await call('/api/public/festival');
+    const publicFloor1 = publicView.body.floorPlans.find((floor: { id: number }) => floor.id === 1);
+    expect(publicFloor1.rooms.some((room: { label: string }) => room.label === '입구 홀')).toBe(true);
+
+    const reset = await call('/api/admin/floor-plans/1/reset', { method: 'POST', jar });
+    expect(reset.status).toBe(200);
+    expect(reset.body.rooms).toEqual([]);
   });
 
   it('배치도 칸은 이름이 필요하고, 배치도 밖으로 나가면 안쪽으로 밀어 넣는다', async () => {

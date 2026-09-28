@@ -12,10 +12,15 @@ import {
 } from './floorPlans.js';
 
 describe('층 배치도 레이아웃', () => {
-  it('2·3·4층이 모두 같은 구조로 정의되어 있다', () => {
-    expect(FLOOR_IDS).toEqual([2, 3, 4]);
+  it('1·2·3·4층이 모두 등록되어 있고, 2·3·4층은 같은 구조다', () => {
+    expect(FLOOR_IDS).toEqual([1, 2, 3, 4]);
     expect(FLOOR_PLANS[3].rooms.length).toBe(FLOOR_PLANS[2].rooms.length);
     expect(FLOOR_PLANS[4].rooms.length).toBe(FLOOR_PLANS[3].rooms.length);
+  });
+
+  it('1층은 아직 배치가 없는 빈 배치도로 시작한다', () => {
+    expect(FLOOR_PLANS[1].rooms).toEqual([]);
+    expect(FLOOR_PLANS[1].label).toBe('1층');
   });
 
   it('4층은 3층을 복제한 좌표에 4개 교실을 갖는다', () => {
@@ -46,8 +51,9 @@ describe('층 배치도 레이아웃', () => {
     expect(findFloorPlan(undefined, 3).label).toBe('3층');
   });
 
-  it('왼쪽 계단은 제거되고 오른쪽 계단만 남는다', () => {
+  it('왼쪽 계단은 제거되고 오른쪽 계단만 남는다 (기본 구조가 있는 층만)', () => {
     for (const floor of FLOOR_IDS) {
+      if (FLOOR_PLANS[floor].rooms.length === 0) continue; // 1층은 아직 빈 배치도
       const stairs = FLOOR_PLANS[floor].rooms.filter((room) => room.tone === 'stair');
       expect(stairs).toHaveLength(1);
       expect(stairs[0].id).toBe(`${floor}-stair-right`);

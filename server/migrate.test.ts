@@ -54,10 +54,13 @@ describe('데이터 마이그레이션', () => {
     expect(result.dataVersion).toBe(CURRENT_DATA_VERSION);
   });
 
-  it('배치도가 없던 저장 파일에는 2·3·4층 기본 배치도를 채워 준다', () => {
+  it('배치도가 없던 저장 파일에는 1·2·3·4층 기본 배치도를 채워 준다', () => {
     const result = normalizeFestivalData(legacyData());
-    expect(result.floorPlans.map((plan) => plan.id)).toEqual([2, 3, 4]);
-    expect(result.floorPlans[2].rooms.some((room) => room.label === '메타버스게임과 3-1')).toBe(true);
+    expect(result.floorPlans.map((plan) => plan.id)).toEqual([1, 2, 3, 4]);
+    expect(result.floorPlans.find((plan) => plan.id === 1)?.rooms).toEqual([]);
+    expect(result.floorPlans.find((plan) => plan.id === 4)?.rooms.some((room) => room.label === '메타버스게임과 3-1')).toBe(
+      true,
+    );
   });
 
   it('이미 편집된 배치도는 유지하고, 빠진 층만 기본값으로 채운다', () => {
@@ -73,10 +76,11 @@ describe('데이터 마이그레이션', () => {
       ],
     };
     const result = normalizeFestivalData(edited);
-    expect(result.floorPlans.map((plan) => plan.id)).toEqual([2, 3, 4]);
-    expect(result.floorPlans[0]).toMatchObject({ label: '이층', hint: '편집됨' });
-    expect(result.floorPlans[0].rooms).toHaveLength(1);
-    expect(result.floorPlans[1].label).toBe('3층');
+    expect(result.floorPlans.map((plan) => plan.id)).toEqual([1, 2, 3, 4]);
+    const floor2 = result.floorPlans.find((plan) => plan.id === 2);
+    expect(floor2).toMatchObject({ label: '이층', hint: '편집됨' });
+    expect(floor2?.rooms).toHaveLength(1);
+    expect(result.floorPlans.find((plan) => plan.id === 3)?.label).toBe('3층');
   });
 
   it('배치도가 깨져 있으면 그 층만 기본값으로 되돌린다', () => {
@@ -88,9 +92,10 @@ describe('데이터 마이그레이션', () => {
       ],
     };
     const result = normalizeFestivalData(broken);
-    expect(result.floorPlans[0].label).toBe('이층');
-    expect(result.floorPlans[1].label).toBe('3층');
-    expect(result.floorPlans[1].rooms.length).toBeGreaterThan(0);
+    expect(result.floorPlans.find((plan) => plan.id === 2)?.label).toBe('이층');
+    const floor3 = result.floorPlans.find((plan) => plan.id === 3);
+    expect(floor3?.label).toBe('3층');
+    expect(floor3?.rooms.length).toBeGreaterThan(0);
   });
 
   it('여러 번 실행해도 학부모 부스가 중복 생성되지 않는다', () => {

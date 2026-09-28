@@ -42,6 +42,8 @@ export const MAX_ROOMS_PER_FLOOR = 40;
 /**
  * 2·3·4층은 같은 구조(오른쪽 계단 + 교실 4칸 + 복도)를 쓰므로
  * 레이아웃을 복제하지 않고 교실 이름만 데이터로 분리한다.
+ * 1층은 실제 구조를 아직 몰라 buildFloor 를 쓰지 않고 빈 배치도(rooms: [])로 시작한다 —
+ * 관리자가 GUI 편집기에서 칸을 직접 추가한다.
  */
 function buildFloor(id: FloorId, hint: string, classrooms: string[]): FloorPlanDef {
   const columns = [
@@ -76,6 +78,9 @@ function buildFloor(id: FloorId, hint: string, classrooms: string[]): FloorPlanD
 }
 
 export const FLOOR_PLANS: Record<FloorId, FloorPlanDef> = {
+  // 1층은 아직 배치가 정해지지 않아 빈 배치도로 둔다. 관리자가 편집기에서
+  // 복도/부스/오브젝트를 추가하면 그 값이 저장 데이터에 남는다.
+  1: { id: 1, label: '1층', hint: '본관 1층', rooms: [] },
   2: buildFloor(2, '본관 2층 · 중앙 복도 기준', [
     '지능형소프트웨어과 1-1',
     '메타버스게임과 1-1',
@@ -98,7 +103,7 @@ export const FLOOR_PLANS: Record<FloorId, FloorPlanDef> = {
   ]),
 };
 
-export const FLOOR_IDS: FloorId[] = [2, 3, 4];
+export const FLOOR_IDS: FloorId[] = [1, 2, 3, 4];
 
 /** 저장 데이터가 비어 있을 때 쓰는 기본 배치도 묶음. 호출할 때마다 새 객체를 만든다(공유 참조 금지). */
 export function defaultFloorPlans(): FloorPlanDef[] {
