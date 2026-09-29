@@ -5,6 +5,7 @@ import {
   normalizeLandingState,
   parseBoothInput,
   parseLandingContent,
+  parseMetaInput,
   parseShowInput,
 } from './validate.js';
 import { createSeedLandingContent } from './seed.js';
@@ -134,9 +135,40 @@ describe('parseBoothInput', () => {
   });
 });
 
+describe('부스 모금액', () => {
+  const base = { name: 'a', team: 'b', floor: 2, position: { x: 50, y: 50 } };
+
+  it('시작 준비금 때문에 음수를 허용한다', () => {
+    expect(parseBoothInput({ ...base, amount: -100000 }).amount).toBe(-100000);
+    expect(parseBoothInput({ ...base, amount: '-50,000' }).amount).toBe(-50000);
+  });
+
+  it('목표 금액은 여전히 음수를 거부한다', () => {
+    expect(() => parseMetaInput({ updated: '', goal: -1, stage: '' })).toThrow(HttpError);
+  });
+});
+
 describe('parseShowInput', () => {
   it('HH:MM 형식이 아니면 거부한다', () => {
     expect(() => parseShowInput({ time: '1300', team: 'a', title: 'b' })).toThrow(HttpError);
+  });
+
+  it('곡명은 선택 입력이며 비어 있으면 생략한다', () => {
+    expect(parseShowInput({ time: '14:20', team: '2-1', title: '밴드 공연', songTitle: ' 나는 반딧불 ' }).songTitle).toBe(
+      '나는 반딧불',
+    );
+    expect(parseShowInput({ time: '14:20', team: '2-1', title: '밴드 공연', songTitle: '' }).songTitle).toBeUndefined();
+    expect(parseShowInput({ time: '14:20', team: '2-1', title: '밴드 공연' }).songTitle).toBeUndefined();
+  });
+
+  it('곡명이 없는 기존 저장 데이터도 그대로 불러온다', () => {
+    const data = normalizeFestivalData({
+      meta: {},
+      booths: [],
+      shows: [{ id: 'legacy', order: 1, time: '13:10', team: '3-2', title: '댄스', genre: '댄스' }],
+    });
+    expect(data.shows).toHaveLength(1);
+    expect(data.shows[0].songTitle).toBeUndefined();
   });
 });
 

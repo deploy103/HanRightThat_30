@@ -23,7 +23,7 @@ export function ScheduleView({ shows, meta }: Props) {
           <div className="table-scroll">
             <table className="schedule-table">
               <caption className="sr-only">
-                {meta.stage} 공연 순서 — 순서, 시간, 팀/학급, 공연명, 장르/비고
+                {meta.stage} 공연 순서 — 순서, 시간, 팀/학급, 공연명/곡명, 장르/비고
               </caption>
               <thead>
                 <tr>
@@ -50,7 +50,15 @@ export function ScheduleView({ shows, meta }: Props) {
                     <td className="col-order">{padRank(show.order)}</td>
                     <td className="col-time">{show.time}</td>
                     <td className="col-team">{show.team}</td>
-                    <td className="col-title">{show.title}</td>
+                    <td className="col-title">
+                      {show.title}
+                      {show.songTitle ? (
+                        <span className="show-song">
+                          <span className="sr-only">곡명 </span>
+                          {show.songTitle}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="col-genre">
                       {show.genre ? <span className="genre-tag">{show.genre}</span> : null}
                       {show.note ? <span className="genre-note">{show.note}</span> : null}

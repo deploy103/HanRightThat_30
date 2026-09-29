@@ -22,7 +22,8 @@ const LEGEND = [
 
 /** 순위는 항상 서버가 계산해 내려준다 — 이 컴포넌트는 렌더링만 담당한다. */
 export function RankingView({ rankings, rankingsPublic, total, meta }: Props) {
-  const top = rankings[0]?.booth.amount ?? 0;
+  // 모금액이 음수(시작 준비금)일 수 있으므로 눈금 기준은 0 이상으로 둔다.
+  const top = Math.max(0, rankings[0]?.booth.amount ?? 0);
 
   return (
     <>
@@ -40,7 +41,7 @@ export function RankingView({ rankings, rankingsPublic, total, meta }: Props) {
             <span className="deckhead-meta">
               {meta.goal > 0 ? (
                 <>
-                  목표 {formatWon(meta.goal)}원 중 <b>{Math.round((total / meta.goal) * 100)}%</b>
+                  목표 {formatWon(meta.goal)}원 중 <b>{Math.max(0, Math.round((total / meta.goal) * 100))}%</b>
                 </>
               ) : (
                 <>

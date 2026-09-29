@@ -67,9 +67,13 @@ function optionalText(value: unknown, label: string, max = 80): string | undefin
   return requireText(value, label, max);
 }
 
-function requireAmount(value: unknown, label: string): number {
+/** allowNegative: 부스 모금액은 시작 준비금(-100,000원 등) 때문에 음수에서 출발할 수 있다. */
+function requireAmount(value: unknown, label: string, allowNegative = false): number {
   const num = typeof value === 'string' ? Number(value.replace(/[,\s]/g, '')) : value;
-  if (typeof num !== 'number' || !Number.isFinite(num) || num < 0) {
+  if (typeof num !== 'number' || !Number.isFinite(num)) {
+    throw new HttpError(400, `${label}은(는) 숫자여야 합니다.`);
+  }
+  if (!allowNegative && num < 0) {
     throw new HttpError(400, `${label}은(는) 0 이상의 숫자여야 합니다.`);
   }
   return Math.round(num);
@@ -170,7 +174,7 @@ export function parseBoothInput(body: unknown): BoothInput {
     name: requireText(raw.name, '부스명', 40),
     team: requireText(raw.team, '팀/학급명', 40),
     floor: requireFloor(raw.floor),
-    amount: requireAmount(raw.amount, '모금액'),
+    amount: requireAmount(raw.amount, '모금액', true),
     place: optionalText(raw.place, '위치 설명', 40),
     position: geometry.position,
     size: geometry.size,
@@ -189,6 +193,7 @@ export function parseShowInput(body: unknown): Omit<ShowInput, 'order'> {
     time: requireTime(raw.time),
     team: requireText(raw.team, '팀/학급명', 40),
     title: requireText(raw.title, '공연명', 60),
+    songTitle: optionalText(raw.songTitle, '곡명', 80),
     genre: optionalText(raw.genre, '장르', 20),
     note: optionalText(raw.note, '비고', 60),
   };

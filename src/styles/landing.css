@@ -565,6 +565,18 @@
   overflow-wrap: anywhere;
 }
 
+.landing-show-song {
+  color: var(--bone);
+  opacity: 0.8;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.landing-show-song::before {
+  content: '♪ ';
+}
+
 .landing-show-team {
   color: var(--dim);
   font-size: 12px;

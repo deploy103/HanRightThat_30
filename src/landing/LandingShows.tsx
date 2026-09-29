@@ -48,6 +48,12 @@ export function LandingShows({ shows, navigate }: Props) {
                 <span className="landing-show-time">{show.time}</span>
                 <span className="landing-show-body">
                   <span className="landing-show-title">{show.title}</span>
+                  {show.songTitle ? (
+                    <span className="landing-show-song">
+                      <span className="sr-only">곡명 </span>
+                      {show.songTitle}
+                    </span>
+                  ) : null}
                   <span className="landing-show-team">
                     {show.team}
                     {show.genre ? <em className="landing-show-genre">{show.genre}</em> : null}

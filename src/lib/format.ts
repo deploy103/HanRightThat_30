@@ -1,8 +1,8 @@
 const wonFormatter = new Intl.NumberFormat('ko-KR');
 
-/** 1234567 -> "1,234,567" */
+/** 1234567 -> "1,234,567", -100000 -> "-100,000" */
 export function formatWon(amount: number): string {
-  return wonFormatter.format(Math.max(0, Math.round(amount)));
+  return wonFormatter.format(Math.round(amount));
 }
 
 /** 1 -> "01" */

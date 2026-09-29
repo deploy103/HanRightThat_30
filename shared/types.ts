@@ -121,6 +121,8 @@ export interface Show {
   time: string;
   team: string;
   title: string;
+  /** 선택 입력 — 기존 데이터에는 없을 수 있다 */
+  songTitle?: string;
   genre?: string;
   note?: string;
 }
