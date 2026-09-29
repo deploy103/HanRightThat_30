@@ -570,6 +570,7 @@
   opacity: 0.8;
   font-size: 12px;
   font-weight: 600;
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 

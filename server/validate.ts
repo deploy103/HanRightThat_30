@@ -68,6 +68,23 @@ function optionalText(value: unknown, label: string, max = 80): string | undefin
 }
 
 /** allowNegative: 부스 모금액은 시작 준비금(-100,000원 등) 때문에 음수에서 출발할 수 있다. */
+/** 빈 항목은 버리고, 하나도 남지 않으면 undefined (optionalText 와 같은 규칙). */
+function optionalTextList(value: unknown, label: string, maxItems: number, max = 80): string[] | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  const items = typeof value === 'string' ? [value] : value;
+  if (!Array.isArray(items)) {
+    throw new HttpError(400, `${label} 값이 올바르지 않습니다.`);
+  }
+  const list = items.flatMap((item) => {
+    const text = typeof item === 'string' && item.trim() === '' ? undefined : optionalText(item, label, max);
+    return text ? [text] : [];
+  });
+  if (list.length > maxItems) {
+    throw new HttpError(400, `${label}은(는) 최대 ${maxItems}개까지 입력할 수 있습니다.`);
+  }
+  return list.length > 0 ? list : undefined;
+}
+
 function requireAmount(value: unknown, label: string, allowNegative = false): number {
   const num = typeof value === 'string' ? Number(value.replace(/[,\s]/g, '')) : value;
   if (typeof num !== 'number' || !Number.isFinite(num)) {
@@ -193,7 +210,8 @@ export function parseShowInput(body: unknown): Omit<ShowInput, 'order'> {
     time: requireTime(raw.time),
     team: requireText(raw.team, '팀/학급명', 40),
     title: requireText(raw.title, '공연명', 60),
-    songTitle: optionalText(raw.songTitle, '곡명', 80),
+    // songTitle(단일 문자열)은 곡명 목록 도입 전 형식 — 저장 데이터·이전 요청을 그대로 받는다.
+    songTitles: optionalTextList(raw.songTitles ?? raw.songTitle, '곡명', 10, 80),
     genre: optionalText(raw.genre, '장르', 20),
     note: optionalText(raw.note, '비고', 60),
   };

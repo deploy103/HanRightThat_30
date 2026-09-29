@@ -153,22 +153,37 @@ describe('parseShowInput', () => {
     expect(() => parseShowInput({ time: '1300', team: 'a', title: 'b' })).toThrow(HttpError);
   });
 
-  it('곡명은 선택 입력이며 비어 있으면 생략한다', () => {
-    expect(parseShowInput({ time: '14:20', team: '2-1', title: '밴드 공연', songTitle: ' 나는 반딧불 ' }).songTitle).toBe(
+  it('곡명은 선택 입력이며 여러 곡을 받는다', () => {
+    const base = { time: '14:20', team: '2-1', title: '밴드 공연' };
+    expect(parseShowInput({ ...base, songTitles: [' 나는 반딧불 ', '', '사건의 지평선'] }).songTitles).toEqual([
       '나는 반딧불',
-    );
-    expect(parseShowInput({ time: '14:20', team: '2-1', title: '밴드 공연', songTitle: '' }).songTitle).toBeUndefined();
-    expect(parseShowInput({ time: '14:20', team: '2-1', title: '밴드 공연' }).songTitle).toBeUndefined();
+      '사건의 지평선',
+    ]);
+    expect(parseShowInput({ ...base, songTitles: ['', '  '] }).songTitles).toBeUndefined();
+    expect(parseShowInput({ ...base, songTitles: [] }).songTitles).toBeUndefined();
+    expect(parseShowInput(base).songTitles).toBeUndefined();
+    expect(() => parseShowInput({ ...base, songTitles: Array.from({ length: 11 }, (_, i) => `곡${i}`) })).toThrow(HttpError);
   });
 
-  it('곡명이 없는 기존 저장 데이터도 그대로 불러온다', () => {
+  it('이전 형식의 단일 songTitle 도 목록으로 받는다', () => {
+    expect(parseShowInput({ time: '14:20', team: '2-1', title: '밴드 공연', songTitle: '나는 반딧불' }).songTitles).toEqual([
+      '나는 반딧불',
+    ]);
+  });
+
+  it('곡명이 없거나 단일 곡명으로 저장된 기존 데이터도 그대로 불러온다', () => {
     const data = normalizeFestivalData({
       meta: {},
       booths: [],
-      shows: [{ id: 'legacy', order: 1, time: '13:10', team: '3-2', title: '댄스', genre: '댄스' }],
+      shows: [
+        { id: 'legacy', order: 1, time: '13:10', team: '3-2', title: '댄스', genre: '댄스' },
+        { id: 'single', order: 2, time: '13:40', team: '밴드부', title: '밴드', songTitle: '나는 반딧불' },
+      ],
     });
-    expect(data.shows).toHaveLength(1);
-    expect(data.shows[0].songTitle).toBeUndefined();
+    expect(data.shows).toHaveLength(2);
+    expect(data.shows[0].songTitles).toBeUndefined();
+    expect(data.shows[1].songTitles).toEqual(['나는 반딧불']);
+    expect(data.shows[1]).not.toHaveProperty('songTitle');
   });
 });
 

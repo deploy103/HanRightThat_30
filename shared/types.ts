@@ -121,8 +121,8 @@ export interface Show {
   time: string;
   team: string;
   title: string;
-  /** 선택 입력 — 기존 데이터에는 없을 수 있다 */
-  songTitle?: string;
+  /** 선택 입력 — 밴드처럼 여러 곡을 하는 팀이 있어 목록으로 둔다. 기존 데이터에는 없을 수 있다 */
+  songTitles?: string[];
   genre?: string;
   note?: string;
 }

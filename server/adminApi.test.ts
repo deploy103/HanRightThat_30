@@ -763,23 +763,23 @@ describe('관리자 CRUD (2FA 통과 세션)', () => {
       jar,
     });
     expect(show.status).toBe(201);
-    expect(show.body.songTitle).toBeUndefined();
+    expect(show.body.songTitles).toBeUndefined();
 
     const withSong = await call(`/api/admin/performances/${show.body.id}`, {
       method: 'PUT',
-      body: { time: '16:30', team: '테스트팀', title: '앵콜', songTitle: '나는 반딧불' },
+      body: { time: '16:30', team: '테스트팀', title: '앵콜', songTitles: ['나는 반딧불', '사건의 지평선'] },
       jar,
     });
     expect(withSong.status).toBe(200);
-    expect(withSong.body.songTitle).toBe('나는 반딧불');
+    expect(withSong.body.songTitles).toEqual(['나는 반딧불', '사건의 지평선']);
 
     const cleared = await call(`/api/admin/performances/${show.body.id}`, {
       method: 'PUT',
-      body: { time: '16:30', team: '테스트팀', title: '앵콜', songTitle: '' },
+      body: { time: '16:30', team: '테스트팀', title: '앵콜', songTitles: [] },
       jar,
     });
     expect(cleared.status).toBe(200);
-    expect(cleared.body.songTitle).toBeUndefined();
+    expect(cleared.body.songTitles).toBeUndefined();
     expect((await call(`/api/admin/performances/${show.body.id}`, { method: 'DELETE', jar })).status).toBe(204);
 
     const item = await call('/api/admin/schedule', {

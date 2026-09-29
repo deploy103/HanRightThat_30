@@ -48,10 +48,10 @@ export function LandingShows({ shows, navigate }: Props) {
                 <span className="landing-show-time">{show.time}</span>
                 <span className="landing-show-body">
                   <span className="landing-show-title">{show.title}</span>
-                  {show.songTitle ? (
+                  {show.songTitles?.length ? (
                     <span className="landing-show-song">
                       <span className="sr-only">곡명 </span>
-                      {show.songTitle}
+                      {show.songTitles.join(' · ')}
                     </span>
                   ) : null}
                   <span className="landing-show-team">

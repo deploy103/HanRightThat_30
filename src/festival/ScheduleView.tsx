@@ -52,10 +52,10 @@ export function ScheduleView({ shows, meta }: Props) {
                     <td className="col-team">{show.team}</td>
                     <td className="col-title">
                       {show.title}
-                      {show.songTitle ? (
+                      {show.songTitles?.length ? (
                         <span className="show-song">
                           <span className="sr-only">곡명 </span>
-                          {show.songTitle}
+                          {show.songTitles.join(' · ')}
                         </span>
                       ) : null}
                     </td>

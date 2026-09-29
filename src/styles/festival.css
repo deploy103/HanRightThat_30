@@ -1064,6 +1064,8 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--dim);
+  /* 여러 곡이 이어질 때 곡 제목 한가운데서 끊기지 않게 띄어쓰기에서만 줄바꿈한다. */
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
