@@ -1,13 +1,13 @@
-import type { Booth, FloorId, FloorPlanDef } from '../../shared/types';
+import type { FloorId, FloorPlanDef, PublicBooth } from '../../shared/types';
 import { FLOOR_IDS, findFloorPlan } from '../../shared/floorPlans';
-import { formatWon } from '../lib/format';
+import { formatBoothAmount } from '../lib/format';
 
 interface Props {
-  booths: Booth[];
+  booths: PublicBooth[];
   /** 서버에서 받은 배치도 (층 이름을 여기서 읽는다). */
   plans?: FloorPlanDef[];
   selectedId: string | null;
-  onSelect: (booth: Booth) => void;
+  onSelect: (booth: PublicBooth) => void;
 }
 
 /** 전체 부스를 층별로 묶어 보여준다. 클릭하면 해당 층 지도로 이동한다. */
@@ -36,7 +36,9 @@ export function BoothList({ booths, plans, selectedId, onSelect }: Props) {
                       {booth.name}
                       <em>{booth.team}</em>
                     </span>
-                    <span className="booth-list-amount">{formatWon(booth.amount)}원</span>
+                    <span className={`booth-list-amount${booth.amount === null ? ' is-private' : ''}`}>
+                      {formatBoothAmount(booth.amount)}
+                    </span>
                   </button>
                 </li>
               ))}

@@ -23,7 +23,7 @@ export function ScheduleView({ shows, meta }: Props) {
           <div className="table-scroll">
             <table className="schedule-table">
               <caption className="sr-only">
-                {meta.stage} 공연 순서 — 순서, 시간, 팀/학급, 공연명/곡명, 장르/비고
+                {meta.stage} 공연 순서 — 순서, 시간, 팀/학급, 공연 내용/곡명, 장르/비고
               </caption>
               <thead>
                 <tr>
@@ -37,7 +37,7 @@ export function ScheduleView({ shows, meta }: Props) {
                     팀 / 학급
                   </th>
                   <th scope="col" className="col-title">
-                    공연명
+                    공연 내용
                   </th>
                   <th scope="col" className="col-genre">
                     장르 / 비고

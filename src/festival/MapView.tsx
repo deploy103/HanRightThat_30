@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Booth, FloorId, FloorPlanDef } from '../../shared/types';
+import type { FloorId, FloorPlanDef, PublicBooth } from '../../shared/types';
 import { PanelHeading } from '../components/PanelHeading';
 import { FLOOR_IDS, findFloorPlan } from '../../shared/floorPlans';
-import { formatWon } from '../lib/format';
+import { formatBoothAmount } from '../lib/format';
 import { BoothList } from './BoothList';
 import { FloorPlan } from './FloorPlan';
 import { FloorSelector } from './FloorSelector';
 
 interface Props {
-  booths: Booth[];
+  booths: PublicBooth[];
   /** 관리자가 편집한 층 배치도. 아직 안 왔으면 코드의 기본 배치도로 그린다. */
   floorPlans?: FloorPlanDef[];
   /** /play/map?booth=<id> 로 들어왔을 때 한 번만 적용할 딥링크 대상. */
@@ -56,7 +56,7 @@ export function MapView({ booths, floorPlans, initialBoothId }: Props) {
   const selected = booths.find((booth) => booth.id === selectedId) ?? null;
 
   /** 목록에서 고르면 해당 층으로 전환하고 지도로 포커스를 옮긴다. */
-  const selectFromList = (booth: Booth) => {
+  const selectFromList = (booth: PublicBooth) => {
     setFloor(booth.floor);
     setSelectedId(booth.id);
     mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -102,7 +102,9 @@ export function MapView({ booths, floorPlans, initialBoothId }: Props) {
                   <span className="map-status-meta">
                     {selected.team} · {selected.place ?? `${selected.floor}층`}
                   </span>
-                  <span className="map-status-amount">{formatWon(selected.amount)}원</span>
+                  <span className={`map-status-amount${selected.amount === null ? ' is-private' : ''}`}>
+                    {formatBoothAmount(selected.amount)}
+                  </span>
                 </>
               ) : (
                 <span className="map-status-meta">

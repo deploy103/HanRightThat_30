@@ -747,6 +747,14 @@
   color: var(--acid);
 }
 
+/* 순위 비공개 — 숫자가 아닌 안내 문구라 강조색/숫자용 글꼴을 쓰지 않는다. */
+.map-status-amount.is-private {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dim);
+}
+
 /* ---------- 공지 ---------- */
 .notice-list {
   list-style: none;
@@ -1057,7 +1065,7 @@
   font-size: 14px;
 }
 
-/* 곡명은 선택 입력이라 별도 열 대신 공연명 아래 한 줄로 붙인다 (없으면 그리지 않음). */
+/* 곡명은 선택 입력이라 별도 열 대신 공연 내용 아래 한 줄로 붙인다 (없으면 그리지 않음). */
 .show-song {
   display: block;
   margin-top: 2px;

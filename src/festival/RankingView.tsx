@@ -8,7 +8,8 @@ import { RankingRow } from './RankingRow';
 interface Props {
   rankings: RankedBooth[];
   rankingsPublic: boolean;
-  total: number;
+  /** 순위 비공개 시 null (비공개 화면에서는 쓰지 않는다). */
+  total: number | null;
   meta: FestivalMeta;
 }
 
@@ -21,7 +22,9 @@ const LEGEND = [
 ] as const;
 
 /** 순위는 항상 서버가 계산해 내려준다 — 이 컴포넌트는 렌더링만 담당한다. */
-export function RankingView({ rankings, rankingsPublic, total, meta }: Props) {
+export function RankingView({ rankings, rankingsPublic, total: totalOrNull, meta }: Props) {
+  // 공개 상태에서는 서버가 항상 합계를 채워 보낸다. null 은 비공개일 때뿐이고 그때는 아래에서 그리지 않는다.
+  const total = totalOrNull ?? 0;
   // 모금액이 음수(시작 준비금)일 수 있으므로 눈금 기준은 0 이상으로 둔다.
   const top = Math.max(0, rankings[0]?.booth.amount ?? 0);
 

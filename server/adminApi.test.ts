@@ -632,6 +632,39 @@ describe('관리자 CRUD (2FA 통과 세션)', () => {
     expect(publicBooths.body.some((item: { id: string }) => item.id === boothId)).toBe(true);
   });
 
+  it('순위를 비공개로 돌리면 공개 API 에서 금액·합계·순위가 모두 빠지고, 관리자 API 에는 남는다', async () => {
+    type AmountRow = { id: string; amount: number | null };
+    expect((await call('/api/admin/settings', { method: 'PUT', body: { rankingsPublic: false }, jar })).status).toBe(200);
+    try {
+      const festival = await call('/api/public/festival');
+      expect(festival.body.rankingsPublic).toBe(false);
+      expect(festival.body.rankings).toEqual([]);
+      expect(festival.body.total).toBeNull();
+      expect(festival.body.booths.length).toBeGreaterThan(0);
+      expect(festival.body.booths.every((item: AmountRow) => item.amount === null)).toBe(true);
+
+      const booths = await call('/api/public/booths');
+      expect(booths.body.every((item: AmountRow) => item.amount === null)).toBe(true);
+
+      const rankings = await call('/api/public/rankings');
+      expect(rankings.body).toEqual({ rankingsPublic: false, rankings: [] });
+
+      // 관리자는 비공개여도 실제 금액을 계속 본다.
+      const adminBooths = await call('/api/admin/booths', { jar });
+      expect(adminBooths.body.find((item: AmountRow) => item.id === boothId).amount).toBe(1000);
+      const adminRankings = await call('/api/admin/rankings', { jar });
+      expect(adminRankings.body.rankings.length).toBeGreaterThan(0);
+    } finally {
+      expect((await call('/api/admin/settings', { method: 'PUT', body: { rankingsPublic: true }, jar })).status).toBe(200);
+    }
+
+    // 다시 공개하면 저장된 금액이 그대로 돌아온다 (비공개 전환이 데이터를 지우지 않는다).
+    const festival = await call('/api/public/festival');
+    expect(festival.body.booths.find((item: AmountRow) => item.id === boothId).amount).toBe(1000);
+    expect(typeof festival.body.total).toBe('number');
+    expect(festival.body.rankings.length).toBeGreaterThan(0);
+  });
+
   it('층 배치도를 공개 렌더러와 같은 좌표계로 내려준다', async () => {
     const plans = await call('/api/admin/floor-plans', { jar });
     expect(plans.status).toBe(200);

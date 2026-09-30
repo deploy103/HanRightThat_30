@@ -1,10 +1,10 @@
 import type { RankedBooth } from '../../shared/ranking';
 import type {
   Announcement,
-  Booth,
   FestivalMeta,
   FloorPlanDef,
   LandingContent,
+  PublicBooth,
   ScheduleItem,
   Show,
 } from '../../shared/types';
@@ -14,13 +14,15 @@ export interface PublicFestival {
   meta: FestivalMeta;
   /** 관리자가 편집한 층 배치도 (교실/복도/계단 칸). */
   floorPlans: FloorPlanDef[];
-  booths: Booth[];
+  /** 순위 비공개 시 amount 는 null 이다. */
+  booths: PublicBooth[];
   shows: Show[];
   scheduleItems: ScheduleItem[];
   announcements: Announcement[];
   rankingsPublic: boolean;
   rankings: RankedBooth[];
-  total: number;
+  /** 순위 비공개 시 null. */
+  total: number | null;
 }
 
 export class ApiError extends Error {

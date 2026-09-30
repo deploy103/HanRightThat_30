@@ -1,8 +1,8 @@
 import { toRect } from '../../shared/floorPlans';
-import type { Booth } from '../../shared/types';
+import type { PublicBooth } from '../../shared/types';
 
 interface Props {
-  booth: Booth;
+  booth: PublicBooth;
   index: number;
   selected: boolean;
   onSelect: (id: string) => void;

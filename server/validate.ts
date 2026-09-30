@@ -209,7 +209,7 @@ export function parseShowInput(body: unknown): Omit<ShowInput, 'order'> {
   return {
     time: requireTime(raw.time),
     team: requireText(raw.team, '팀/학급명', 40),
-    title: requireText(raw.title, '공연명', 60),
+    title: requireText(raw.title, '공연 내용', 60),
     // songTitle(단일 문자열)은 곡명 목록 도입 전 형식 — 저장 데이터·이전 요청을 그대로 받는다.
     songTitles: optionalTextList(raw.songTitles ?? raw.songTitle, '곡명', 10, 80),
     genre: optionalText(raw.genre, '장르', 20),

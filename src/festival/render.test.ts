@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Announcement, Booth } from '../../shared/types';
+import { BoothList } from './BoothList';
 import { FloorPlan } from './FloorPlan';
 import { NoticeView } from './NoticeView';
 
@@ -166,5 +167,23 @@ describe('공개 층 배치도', () => {
     );
     expect(html).toContain('booth-area is-selected');
     expect(html).toContain('is-ended');
+  });
+});
+
+describe('배치도 부스 목록 금액', () => {
+  it('공개 상태에서는 금액을 보여 준다', () => {
+    const html = renderToStaticMarkup(
+      createElement(BoothList, { booths: [booth({ amount: 12000 })], selectedId: null, onSelect: () => {} }),
+    );
+    expect(html).toContain('12,000원');
+  });
+
+  it('순위 비공개로 금액이 비어 오면(null) "비공개" 로 표시하고 숫자를 내보내지 않는다', () => {
+    const html = renderToStaticMarkup(
+      createElement(BoothList, { booths: [{ ...booth(), amount: null }], selectedId: null, onSelect: () => {} }),
+    );
+    expect(html).toContain('비공개');
+    expect(html).not.toContain('원<');
+    expect(html).not.toContain('0원');
   });
 });

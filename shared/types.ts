@@ -172,6 +172,12 @@ export interface FestivalData {
   landing: LandingState;
 }
 
+/**
+ * 공개 API 가 내려주는 부스. 순위가 비공개(settings.rankingsPublic=false)이면
+ * 금액을 추측할 수 없도록 서버가 amount 를 null 로 비워서 보낸다.
+ */
+export type PublicBooth = Omit<Booth, 'amount'> & { amount: number | null };
+
 export type BoothInput = Omit<Booth, 'id' | 'archivedAt'>;
 /** 층 배치도 수정 입력 — id 는 URL 로 받으므로 본문에 없다. */
 export type FloorPlanInput = Omit<FloorPlanDef, 'id'>;

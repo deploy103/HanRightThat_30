@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Booth } from '../../shared/types';
+import type { PublicBooth } from '../../shared/types';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { isPlainLeftClick } from '../hooks/useRoute';
 import { LandingSectionHeading } from './LandingSectionHeading';
 
 interface Props {
-  booths: Booth[];
+  booths: PublicBooth[];
   navigate: (path: string, options?: { replace?: boolean }) => void;
 }
 
@@ -15,7 +15,7 @@ interface Props {
  */
 const DEFAULT_PREVIEW_COUNT = 8;
 
-function BoothCard({ booth, navigate }: { booth: Booth; navigate: Props['navigate'] }) {
+function BoothCard({ booth, navigate }: { booth: PublicBooth; navigate: Props['navigate'] }) {
   const href = `/play/map?booth=${encodeURIComponent(booth.id)}`;
   const onClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!isPlainLeftClick(event)) return;

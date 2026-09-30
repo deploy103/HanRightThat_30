@@ -34,7 +34,9 @@ export function FestivalApp({ tab, boothId, navigate }: Props) {
     ? [
         { label: '공연 장소', value: data.meta.stage },
         // 순위가 비공개 상태일 때는 모금액도 함께 숨겨 관리자의 비공개 설정과 어긋나지 않게 한다.
-        ...(data.rankingsPublic ? [{ label: '모금 현황', value: `${formatWon(data.total)}원` }] : []),
+        ...(data.rankingsPublic && data.total !== null
+          ? [{ label: '모금 현황', value: `${formatWon(data.total)}원` }]
+          : []),
         { label: '갱신', value: data.meta.updated },
       ]
     : undefined;

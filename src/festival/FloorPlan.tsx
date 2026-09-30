@@ -1,5 +1,5 @@
 import { findFloorPlan } from '../../shared/floorPlans';
-import type { Booth, FloorId, FloorPlanDef } from '../../shared/types';
+import type { FloorId, FloorPlanDef, PublicBooth } from '../../shared/types';
 import { BoothArea } from './BoothArea';
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
   /** 서버에서 받은 배치도. 아직 안 왔으면 코드의 기본 배치도로 그린다. */
   plans?: FloorPlanDef[];
   /** 해당 층의 부스만 넘긴다. */
-  booths: Booth[];
+  booths: PublicBooth[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { DEFAULT_BOOTH_SIZE, FLOOR_ASPECT, MIN_BOOTH_SIZE } from '../../shared/floorPlans.js';
 import { rankBooths } from '../../shared/ranking.js';
 import { loadData } from '../db.js';
-import { publicFestivalView, visibleBooths } from '../publicView.js';
+import { publicBooths, publicFestivalView, visibleBooths } from '../publicView.js';
 import { asyncRoute } from '../routeUtils.js';
 import { noStore } from '../securityHeaders.js';
 
@@ -36,7 +36,7 @@ publicRouter.get(
 publicRouter.get(
   '/booths',
   asyncRoute(async (_req, res) => {
-    res.json(visibleBooths(await loadData()));
+    res.json(publicBooths(await loadData()));
   }),
 );
 
