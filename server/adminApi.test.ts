@@ -632,6 +632,26 @@ describe('관리자 CRUD (2FA 통과 세션)', () => {
     expect(publicBooths.body.some((item: { id: string }) => item.id === boothId)).toBe(true);
   });
 
+  it('기본 정보(갱신 문구·목표·공연 장소)를 저장하면 공개 화면에 반영된다', async () => {
+    const before = await call('/api/admin/meta', { jar });
+    expect(before.status).toBe(200);
+    try {
+      const next = { updated: '10월 1일 오후 3시 5분 기준', goal: 500000, stage: '체육관' };
+      const saved = await call('/api/admin/meta', { method: 'PUT', body: next, jar });
+      expect(saved.status).toBe(200);
+      // 관리자 화면은 응답의 meta 를 그대로 다시 폼에 채운다.
+      expect(saved.body.meta).toEqual(next);
+
+      const festival = await call('/api/public/festival');
+      expect(festival.body.meta).toEqual(next);
+
+      const negative = await call('/api/admin/meta', { method: 'PUT', body: { ...next, goal: -1 }, jar });
+      expect(negative.status).toBe(400);
+    } finally {
+      await call('/api/admin/meta', { method: 'PUT', body: before.body, jar });
+    }
+  });
+
   it('순위를 비공개로 돌리면 공개 API 에서 금액·합계·순위가 모두 빠지고, 관리자 API 에는 남는다', async () => {
     type AmountRow = { id: string; amount: number | null };
     expect((await call('/api/admin/settings', { method: 'PUT', body: { rankingsPublic: false }, jar })).status).toBe(200);
